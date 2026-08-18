@@ -74,6 +74,17 @@ export default [
     ]
   },
   {
+    name: 'crm',
+    path: '/crm',
+    routes: [
+      {
+        name: '客户详情',
+        path: '/crm/customer/detail/:id',
+        component: './Crm/Customer/detail',
+      },
+    ]
+  },
+  {
     name: 'tool',
     path: '/tool',
     routes: [
