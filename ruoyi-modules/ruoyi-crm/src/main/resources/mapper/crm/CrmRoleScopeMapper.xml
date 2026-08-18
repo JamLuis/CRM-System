@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.tenant.mapper.CrmRoleScopeMapper">
+
+    <resultMap type="com.ruoyi.crm.tenant.domain.CrmRoleScope" id="CrmRoleScopeResult">
+        <result property="id"         column="id"/>
+        <result property="tenantId"   column="tenant_id"/>
+        <result property="roleId"     column="role_id"/>
+        <result property="scopeType"  column="scope_type"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectByRoleId" resultMap="CrmRoleScopeResult">
+        SELECT id, tenant_id, role_id, scope_type, create_time
+        FROM crm_role_scope
+        WHERE tenant_id = #{tenantId} AND role_id = #{roleId}
+    </select>
+
+    <select id="selectAll" parameterType="String" resultMap="CrmRoleScopeResult">
+        SELECT id, tenant_id, role_id, scope_type, create_time
+        FROM crm_role_scope
+        WHERE tenant_id = #{tenantId}
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.tenant.domain.CrmRoleScope">
+        INSERT INTO crm_role_scope (id, tenant_id, role_id, scope_type, create_time)
+        VALUES (#{id}, #{tenantId}, #{roleId}, #{scopeType}, NOW())
+    </insert>
+
+    <update id="update" parameterType="com.ruoyi.crm.tenant.domain.CrmRoleScope">
+        UPDATE crm_role_scope
+        SET scope_type = #{scopeType}
+        WHERE id = #{id} AND tenant_id = #{tenantId}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM crm_role_scope
+        WHERE id = #{id} AND tenant_id = #{tenantId}
+    </delete>
+
+</mapper>

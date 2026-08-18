@@ -9,6 +9,8 @@ import com.ruoyi.system.api.RemoteUserService;
 import com.ruoyi.system.api.domain.SysUser;
 import com.ruoyi.system.api.model.LoginUser;
 
+import java.util.List;
+
 /**
  * 用户服务降级处理
  * 
@@ -35,6 +37,42 @@ public class RemoteUserFallbackFactory implements FallbackFactory<RemoteUserServ
             public R<Boolean> registerUserInfo(SysUser sysUser, String source)
             {
                 return R.fail("注册用户失败:" + throwable.getMessage());
+            }
+
+            @Override
+            public R<Long> innerAddUser(SysUser sysUser, String source)
+            {
+                return R.fail("内部新增用户失败:" + throwable.getMessage());
+            }
+
+            @Override
+            public R<Boolean> innerEditUser(SysUser sysUser, String source)
+            {
+                return R.fail("内部修改用户失败:" + throwable.getMessage());
+            }
+
+            @Override
+            public R<Boolean> innerChangeUserStatus(Long userId, String status, String source)
+            {
+                return R.fail("内部修改用户状态失败:" + throwable.getMessage());
+            }
+
+            @Override
+            public R<SysUser> innerGetUserByPhone(String phonenumber, String source)
+            {
+                return R.fail("内部按手机号查询用户失败:" + throwable.getMessage());
+            }
+
+            @Override
+            public R<List<SysUser>> innerList(SysUser sysUser, String source)
+            {
+                return R.fail("内部查询用户列表失败:" + throwable.getMessage());
+            }
+
+            @Override
+            public R<SysUser> innerGetUserById(Long userId, String source)
+            {
+                return R.fail("内部按 ID 查询用户失败:" + throwable.getMessage());
             }
         };
     }

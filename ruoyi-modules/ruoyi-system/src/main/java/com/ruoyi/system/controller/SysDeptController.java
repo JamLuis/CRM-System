@@ -18,6 +18,8 @@ import com.ruoyi.common.core.web.controller.BaseController;
 import com.ruoyi.common.core.web.domain.AjaxResult;
 import com.ruoyi.common.log.annotation.Log;
 import com.ruoyi.common.log.enums.BusinessType;
+import com.ruoyi.common.core.domain.R;
+import com.ruoyi.common.security.annotation.InnerAuth;
 import com.ruoyi.common.security.annotation.RequiresPermissions;
 import com.ruoyi.common.security.utils.SecurityUtils;
 import com.ruoyi.system.api.domain.SysDept;
@@ -129,5 +131,40 @@ public class SysDeptController extends BaseController
         }
         deptService.checkDeptDataScope(deptId);
         return toAjax(deptService.deleteDeptById(deptId));
+    }
+
+    // --- 内部调用接口（钉钉组织同步用） ---
+
+    /**
+     * 内部调用：查询部门列表
+     */
+    @InnerAuth
+    @GetMapping("/inner/list")
+    public R<List<SysDept>> innerList()
+    {
+        return R.ok(deptService.selectDeptList(new SysDept()));
+    }
+
+    /**
+     * 内部调用：新增部门
+     */
+    @InnerAuth
+    @PostMapping("/inner/add")
+    public R<Long> innerAdd(@RequestBody SysDept dept)
+    {
+        dept.setCreateBy("dingtalk-sync");
+        deptService.insertDept(dept);
+        return R.ok(dept.getDeptId());
+    }
+
+    /**
+     * 内部调用：修改部门
+     */
+    @InnerAuth
+    @PutMapping("/inner/edit")
+    public R<Boolean> innerEdit(@RequestBody SysDept dept)
+    {
+        dept.setUpdateBy("dingtalk-sync");
+        return R.ok(deptService.updateDept(dept) > 0);
     }
 }

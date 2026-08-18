@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.tenant.mapper.CrmOrgSyncCursorMapper">
+
+    <resultMap type="com.ruoyi.crm.tenant.domain.CrmOrgSyncCursor" id="CrmOrgSyncCursorResult">
+        <result property="id"           column="id"/>
+        <result property="tenantId"     column="tenant_id"/>
+        <result property="source"       column="source"/>
+        <result property="cursor"      column="cursor"/>
+        <result property="lastSyncTime" column="last_sync_time"/>
+        <result property="createTime"   column="create_time"/>
+        <result property="updateTime"   column="update_time"/>
+        <result property="version"      column="version"/>
+    </resultMap>
+
+    <select id="selectBySource" resultMap="CrmOrgSyncCursorResult">
+        SELECT id, tenant_id, source, cursor, last_sync_time, create_time, update_time, version
+        FROM crm_org_sync_cursor
+        WHERE tenant_id = #{tenantId} AND source = #{source}
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.tenant.domain.CrmOrgSyncCursor">
+        INSERT INTO crm_org_sync_cursor (
+            id, tenant_id, source, cursor, last_sync_time, create_time, update_time, version
+        ) VALUES (
+            #{id}, #{tenantId}, #{source}, #{cursor}, #{lastSyncTime}, NOW(), NOW(), 0
+        )
+    </insert>
+
+    <update id="update" parameterType="com.ruoyi.crm.tenant.domain.CrmOrgSyncCursor">
+        UPDATE crm_org_sync_cursor
+        SET cursor = #{cursor},
+            last_sync_time = #{lastSyncTime},
+            update_time = NOW(),
+            version = version + 1
+        WHERE id = #{id} AND tenant_id = #{tenantId} AND version = #{version}
+    </update>
+
+</mapper>

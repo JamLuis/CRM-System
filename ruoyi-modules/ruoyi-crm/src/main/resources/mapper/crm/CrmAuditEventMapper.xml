@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.audit.mapper.CrmAuditEventMapper">
+
+    <resultMap type="com.ruoyi.crm.audit.domain.CrmAuditEvent" id="CrmAuditEventResult">
+        <result property="id"           column="id"/>
+        <result property="tenantId"     column="tenant_id"/>
+        <result property="eventType"    column="event_type"/>
+        <result property="entityType"   column="entity_type"/>
+        <result property="entityId"     column="entity_id"/>
+        <result property="operatorId"   column="operator_id"/>
+        <result property="operatorName" column="operator_name"/>
+        <result property="action"       column="action"/>
+        <result property="beforeData"   column="before_data"/>
+        <result property="afterData"    column="after_data"/>
+        <result property="ipAddress"    column="ip_address"/>
+        <result property="userAgent"    column="user_agent"/>
+        <result property="createTime"   column="create_time"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        id, tenant_id, event_type, entity_type, entity_id, operator_id, operator_name,
+        action, before_data, after_data, ip_address, user_agent, create_time
+    </sql>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.audit.domain.CrmAuditEvent">
+        INSERT INTO crm_audit_event (
+            id, tenant_id, event_type, entity_type, entity_id, operator_id, operator_name,
+            action, before_data, after_data, ip_address, user_agent, create_time
+        ) VALUES (
+            #{id}, #{tenantId}, #{eventType}, #{entityType}, #{entityId}, #{operatorId}, #{operatorName},
+            #{action}, #{beforeData}, #{afterData}, #{ipAddress}, #{userAgent}, NOW()
+        )
+    </insert>
+
+    <select id="selectByEntity" resultMap="CrmAuditEventResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_audit_event
+        WHERE tenant_id = #{tenantId} AND entity_type = #{entityType} AND entity_id = #{entityId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByOperator" resultMap="CrmAuditEventResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_audit_event
+        WHERE tenant_id = #{tenantId} AND operator_id = #{operatorId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByTimeRange" resultMap="CrmAuditEventResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_audit_event
+        WHERE tenant_id = #{tenantId}
+          AND create_time &gt;= #{startTime}
+          AND create_time &lt;= #{endTime}
+        ORDER BY create_time DESC
+    </select>
+
+</mapper>

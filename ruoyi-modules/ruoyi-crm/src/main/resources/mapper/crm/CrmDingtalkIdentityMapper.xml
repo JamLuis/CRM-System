@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.tenant.mapper.CrmDingtalkIdentityMapper">
+
+    <resultMap type="com.ruoyi.crm.tenant.domain.CrmDingtalkIdentity" id="CrmDingtalkIdentityResult">
+        <result property="id"              column="id"/>
+        <result property="tenantId"        column="tenant_id"/>
+        <result property="dingtalkUserId"  column="dingtalk_user_id"/>
+        <result property="sysUserId"       column="sys_user_id"/>
+        <result property="unionId"         column="union_id"/>
+        <result property="createTime"      column="create_time"/>
+        <result property="updateTime"      column="update_time"/>
+        <result property="version"         column="version"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        id, tenant_id, dingtalk_user_id, sys_user_id, union_id, create_time, update_time, version
+    </sql>
+
+    <select id="selectByDingtalkUserId" resultMap="CrmDingtalkIdentityResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_dingtalk_identity
+        WHERE tenant_id = #{tenantId} AND dingtalk_user_id = #{dingtalkUserId}
+    </select>
+
+    <select id="selectBySysUserId" resultMap="CrmDingtalkIdentityResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_dingtalk_identity
+        WHERE tenant_id = #{tenantId} AND sys_user_id = #{sysUserId}
+    </select>
+
+    <select id="selectAll" parameterType="String" resultMap="CrmDingtalkIdentityResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_dingtalk_identity
+        WHERE tenant_id = #{tenantId}
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.tenant.domain.CrmDingtalkIdentity">
+        INSERT INTO crm_dingtalk_identity (
+            id, tenant_id, dingtalk_user_id, sys_user_id, union_id, create_time, update_time, version
+        ) VALUES (
+            #{id}, #{tenantId}, #{dingtalkUserId}, #{sysUserId}, #{unionId}, NOW(), NOW(), 0
+        )
+    </insert>
+
+    <update id="update" parameterType="com.ruoyi.crm.tenant.domain.CrmDingtalkIdentity">
+        UPDATE crm_dingtalk_identity
+        SET sys_user_id = #{sysUserId},
+            union_id = #{unionId},
+            update_time = NOW(),
+            version = version + 1
+        WHERE id = #{id} AND tenant_id = #{tenantId} AND version = #{version}
+    </update>
+
+</mapper>

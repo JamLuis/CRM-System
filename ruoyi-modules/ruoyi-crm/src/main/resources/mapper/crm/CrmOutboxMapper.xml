@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.outbox.mapper.CrmOutboxMapper">
+
+    <resultMap type="com.ruoyi.crm.outbox.domain.CrmOutbox" id="CrmOutboxResult">
+        <result property="id"            column="id"/>
+        <result property="tenantId"      column="tenant_id"/>
+        <result property="aggregateType" column="aggregate_type"/>
+        <result property="aggregateId"   column="aggregate_id"/>
+        <result property="eventType"     column="event_type"/>
+        <result property="payload"       column="payload"/>
+        <result property="status"         column="status"/>
+        <result property="retryCount"    column="retry_count"/>
+        <result property="nextRetryTime" column="next_retry_time"/>
+        <result property="createTime"    column="create_time"/>
+        <result property="updateTime"    column="update_time"/>
+        <result property="version"       column="version"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        id, tenant_id, aggregate_type, aggregate_id, event_type, payload,
+        status, retry_count, next_retry_time, create_time, update_time, version
+    </sql>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.outbox.domain.CrmOutbox">
+        INSERT INTO crm_outbox (
+            id, tenant_id, aggregate_type, aggregate_id, event_type, payload,
+            status, retry_count, next_retry_time, create_time, update_time, version
+        ) VALUES (
+            #{id}, #{tenantId}, #{aggregateType}, #{aggregateId}, #{eventType}, #{payload},
+            #{status}, #{retryCount}, #{nextRetryTime}, NOW(), NOW(), 0
+        )
+    </insert>
+
+    <select id="selectPending" resultMap="CrmOutboxResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_outbox
+        WHERE tenant_id = #{tenantId}
+          AND status = 'PENDING'
+          AND (next_retry_time IS NULL OR next_retry_time &lt;= NOW())
+        ORDER BY create_time ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectFailedForRetry" resultMap="CrmOutboxResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_outbox
+        WHERE tenant_id = #{tenantId}
+          AND status = 'FAILED'
+          AND retry_count &lt; #{maxRetries}
+          AND (next_retry_time IS NULL OR next_retry_time &lt;= NOW())
+        ORDER BY next_retry_time ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE crm_outbox
+        SET status = #{status},
+            retry_count = #{retryCount},
+            next_retry_time = #{nextRetryTime},
+            update_time = NOW(),
+            version = version + 1
+        WHERE id = #{id} AND tenant_id = #{tenantId} AND version = #{version}
+    </update>
+
+    <select id="selectDead" resultMap="CrmOutboxResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_outbox
+        WHERE tenant_id = #{tenantId}
+          AND status = 'DEAD'
+        ORDER BY update_time DESC
+    </select>
+
+    <update id="resetDeadToPending">
+        UPDATE crm_outbox
+        SET status = 'PENDING',
+            retry_count = 0,
+            next_retry_time = NULL,
+            update_time = NOW(),
+            version = version + 1
+        WHERE id = #{id} AND tenant_id = #{tenantId} AND version = #{version}
+    </update>
+
+</mapper>

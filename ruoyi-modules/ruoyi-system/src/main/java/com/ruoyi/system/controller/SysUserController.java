@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.ruoyi.common.core.domain.R;
@@ -322,5 +323,103 @@ public class SysUserController extends BaseController
     public AjaxResult deptTree(SysDept dept)
     {
         return success(deptService.selectDeptTreeList(dept));
+    }
+
+    // --- 内部调用接口（钉钉组织同步用） ---
+
+    /**
+     * 内部调用：新增用户
+     */
+    @InnerAuth
+    @PostMapping("/inner/add")
+    public R<Long> innerAdd(@RequestBody SysUser sysUser)
+    {
+        if (!userService.checkUserNameUnique(sysUser))
+        {
+            return R.fail("登录账号已存在");
+        }
+        if (StringUtils.isNotEmpty(sysUser.getPhonenumber()) && !userService.checkPhoneUnique(sysUser))
+        {
+            return R.fail("手机号码已存在");
+        }
+        sysUser.setCreateBy("dingtalk-sync");
+        if (StringUtils.isNotEmpty(sysUser.getPassword()))
+        {
+            sysUser.setPassword(SecurityUtils.encryptPassword(sysUser.getPassword()));
+        }
+        else
+        {
+            sysUser.setPassword(SecurityUtils.encryptPassword("dingtalk_" + sysUser.getUserName()));
+        }
+        userService.insertUser(sysUser);
+        return R.ok(sysUser.getUserId());
+    }
+
+    /**
+     * 内部调用：修改用户
+     */
+    @InnerAuth
+    @PutMapping("/inner/edit")
+    public R<Boolean> innerEdit(@RequestBody SysUser sysUser)
+    {
+        sysUser.setUpdateBy("dingtalk-sync");
+        return R.ok(userService.updateUser(sysUser) > 0);
+    }
+
+    /**
+     * 内部调用：修改用户状态
+     */
+    @InnerAuth
+    @PutMapping("/inner/changeStatus")
+    public R<Boolean> innerChangeStatus(@RequestParam("userId") Long userId, @RequestParam("status") String status)
+    {
+        SysUser user = new SysUser();
+        user.setUserId(userId);
+        user.setStatus(status);
+        user.setUpdateBy("dingtalk-sync");
+        return R.ok(userService.updateUserStatus(user) > 0);
+    }
+
+    /**
+     * 内部调用：按手机号查询用户
+     */
+    @InnerAuth
+    @GetMapping("/inner/byPhone")
+    public R<SysUser> innerGetUserByPhone(@RequestParam("phonenumber") String phonenumber)
+    {
+        SysUser query = new SysUser();
+        query.setPhonenumber(phonenumber);
+        List<SysUser> list = userService.selectUserList(query);
+        if (list != null && !list.isEmpty())
+        {
+            return R.ok(list.get(0));
+        }
+        return R.fail("用户不存在");
+    }
+
+    /**
+     * 内部调用：按条件查询用户列表（CRM 人员搜索用）
+     */
+    @InnerAuth
+    @GetMapping("/inner/list")
+    public R<List<SysUser>> innerList(SysUser user)
+    {
+        List<SysUser> list = userService.selectUserList(user);
+        return R.ok(list);
+    }
+
+    /**
+     * 内部调用：按用户 ID 查询用户详情
+     */
+    @InnerAuth
+    @GetMapping("/inner/byId")
+    public R<SysUser> innerGetUserById(@RequestParam("userId") Long userId)
+    {
+        SysUser user = userService.selectUserById(userId);
+        if (user != null)
+        {
+            return R.ok(user);
+        }
+        return R.fail("用户不存在");
     }
 }
