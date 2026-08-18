@@ -32,6 +32,17 @@ public enum PermissionCode
     CRM_FOLLOWUP_READ("crm:followup:read"),
     CRM_FOLLOWUP_WRITE("crm:followup:write"),
 
+    // --- 附件 ---
+    CRM_ATTACHMENT_READ("crm:attachment:read"),
+    CRM_ATTACHMENT_WRITE("crm:attachment:write"),
+
+    // --- 提醒 ---
+    CRM_REMINDER_READ("crm:reminder:read"),
+    CRM_REMINDER_WRITE("crm:reminder:write"),
+
+    // --- 健康度策略 ---
+    CRM_HEALTH_STRATEGY("crm:health:strategy"),
+
     // --- 商机 ---
     CRM_OPPORTUNITY_READ("crm:opportunity:read"),
     CRM_OPPORTUNITY_WRITE("crm:opportunity:write"),

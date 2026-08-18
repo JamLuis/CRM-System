@@ -75,4 +75,19 @@ public interface CrmCustomerMapper
                            @Param("collaboratorIds") String collaboratorIds,
                            @Param("updateBy") String updateBy,
                            @Param("version") Integer version);
+
+    /**
+     * 更新跟进状态（乐观锁）
+     */
+    int updateFollowUpStatus(@Param("tenantId") String tenantId,
+                             @Param("customerId") Long customerId,
+                             @Param("followUpStatus") String followUpStatus,
+                             @Param("updateBy") String updateBy,
+                             @Param("version") Integer version);
+
+    /**
+     * 按跟进状态查询客户ID列表（批量重算用）
+     */
+    java.util.List<CrmCustomer> selectIdsByFollowUpStatus(@Param("tenantId") String tenantId,
+                                                           @Param("followUpStatus") String followUpStatus);
 }

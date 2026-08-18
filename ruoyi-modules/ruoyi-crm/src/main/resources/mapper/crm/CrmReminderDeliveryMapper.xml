@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.followup.mapper.CrmReminderDeliveryMapper">
+
+    <resultMap type="com.ruoyi.crm.followup.domain.CrmReminderDelivery" id="CrmReminderDeliveryResult">
+        <result property="deliveryId"           column="delivery_id"/>
+        <result property="tenantId"              column="tenant_id"/>
+        <result property="planId"                 column="plan_id"/>
+        <result property="customerId"            column="customer_id"/>
+        <result property="planKey"                column="plan_key"/>
+        <result property="plannedFollowUpAt"     column="planned_follow_up_at"/>
+        <result property="scheduledAt"           column="scheduled_at"/>
+        <result property="recipientUserId"       column="recipient_user_id"/>
+        <result property="recipientName"         column="recipient_name"/>
+        <result property="status"                 column="status"/>
+        <result property="retryCount"            column="retry_count"/>
+        <result property="lastAttemptAt"          column="last_attempt_at"/>
+        <result property="lastErrorCode"          column="last_error_code"/>
+        <result property="completedAt"            column="completed_at"/>
+        <result property="createBy"              column="create_by"/>
+        <result property="createTime"            column="create_time"/>
+        <result property="updateBy"              column="update_by"/>
+        <result property="updateTime"            column="update_time"/>
+        <result property="version"               column="version"/>
+        <result property="delFlag"               column="del_flag"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        delivery_id, tenant_id, plan_id, customer_id, plan_key,
+        planned_follow_up_at, scheduled_at, recipient_user_id, recipient_name,
+        status, retry_count, last_attempt_at, last_error_code, completed_at,
+        create_by, create_time, update_by, update_time, version, del_flag
+    </sql>
+
+    <select id="selectByDeliveryId" resultMap="CrmReminderDeliveryResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_reminder_delivery
+        WHERE tenant_id = #{tenantId} AND delivery_id = #{deliveryId} AND del_flag = '0'
+    </select>
+
+    <select id="selectByPlanId" resultMap="CrmReminderDeliveryResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_reminder_delivery
+        WHERE tenant_id = #{tenantId}
+          AND plan_id = #{planId}
+          AND del_flag = '0'
+        ORDER BY create_time
+    </select>
+
+    <select id="selectByCustomer" resultMap="CrmReminderDeliveryResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_reminder_delivery
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND del_flag = '0'
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectPendingForDispatch" resultMap="CrmReminderDeliveryResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_reminder_delivery
+        WHERE tenant_id = #{tenantId}
+          AND status IN ('PENDING', 'RETRYING')
+          AND scheduled_at &lt;= #{scheduledBefore}
+          AND del_flag = '0'
+        ORDER BY scheduled_at
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.followup.domain.CrmReminderDelivery">
+        INSERT INTO crm_reminder_delivery (
+            delivery_id, tenant_id, plan_id, customer_id, plan_key,
+            planned_follow_up_at, scheduled_at, recipient_user_id, recipient_name,
+            status, retry_count, last_attempt_at, last_error_code, completed_at,
+            create_by, create_time, update_by, update_time, version, del_flag
+        ) VALUES (
+            #{deliveryId}, #{tenantId}, #{planId}, #{customerId}, #{planKey},
+            #{plannedFollowUpAt}, #{scheduledAt}, #{recipientUserId}, #{recipientName},
+            #{status}, #{retryCount}, #{lastAttemptAt}, #{lastErrorCode}, #{completedAt},
+            #{createBy}, NOW(), #{updateBy}, NOW(), 0, '0'
+        )
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE crm_reminder_delivery
+        SET status = #{status},
+            last_attempt_at = #{lastAttemptAt},
+            last_error_code = #{lastErrorCode},
+            completed_at = #{completedAt},
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND delivery_id = #{deliveryId}
+          AND del_flag = '0'
+    </update>
+
+    <update id="incrementRetry">
+        UPDATE crm_reminder_delivery
+        SET status = 'RETRYING',
+            retry_count = retry_count + 1,
+            last_attempt_at = #{lastAttemptAt},
+            last_error_code = #{lastErrorCode},
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND delivery_id = #{deliveryId}
+          AND retry_count &lt; 3
+          AND del_flag = '0'
+    </update>
+
+    <update id="cancelByPlanId">
+        UPDATE crm_reminder_delivery
+        SET status = 'CANCELLED',
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND plan_id = #{planId}
+          AND status IN ('PENDING', 'RETRYING')
+          AND del_flag = '0'
+    </update>
+
+    <update id="cancelByCustomer">
+        UPDATE crm_reminder_delivery
+        SET status = 'CANCELLED',
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND status IN ('PENDING', 'RETRYING')
+          AND del_flag = '0'
+    </update>
+
+</mapper>

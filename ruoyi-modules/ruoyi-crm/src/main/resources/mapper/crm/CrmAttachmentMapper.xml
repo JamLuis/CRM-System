@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.followup.mapper.CrmAttachmentMapper">
+
+    <resultMap type="com.ruoyi.crm.followup.domain.CrmAttachment" id="CrmAttachmentResult">
+        <result property="attachmentId"       column="attachment_id"/>
+        <result property="tenantId"           column="tenant_id"/>
+        <result property="ownerType"           column="owner_type"/>
+        <result property="ownerId"             column="owner_id"/>
+        <result property="fileName"            column="file_name"/>
+        <result property="contentType"         column="content_type"/>
+        <result property="sizeBytes"           column="size_bytes"/>
+        <result property="storageKey"          column="storage_key"/>
+        <result property="checksum"             column="checksum"/>
+        <result property="uploadedBy"           column="uploaded_by"/>
+        <result property="uploadedByName"      column="uploaded_by_name"/>
+        <result property="status"               column="status"/>
+        <result property="scanStartedAt"        column="scan_started_at"/>
+        <result property="scanCompletedAt"      column="scan_completed_at"/>
+        <result property="scanErrorCode"        column="scan_error_code"/>
+        <result property="createBy"             column="create_by"/>
+        <result property="createTime"           column="create_time"/>
+        <result property="updateBy"             column="update_by"/>
+        <result property="updateTime"           column="update_time"/>
+        <result property="version"              column="version"/>
+        <result property="delFlag"              column="del_flag"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        attachment_id, tenant_id, owner_type, owner_id, file_name, content_type, size_bytes,
+        storage_key, checksum, uploaded_by, uploaded_by_name, status,
+        scan_started_at, scan_completed_at, scan_error_code,
+        create_by, create_time, update_by, update_time, version, del_flag
+    </sql>
+
+    <select id="selectByAttachmentId" resultMap="CrmAttachmentResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_attachment
+        WHERE tenant_id = #{tenantId} AND attachment_id = #{attachmentId} AND del_flag = '0'
+    </select>
+
+    <select id="selectByOwner" resultMap="CrmAttachmentResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_attachment
+        WHERE tenant_id = #{tenantId}
+          AND owner_type = #{ownerType}
+          AND owner_id = #{ownerId}
+          AND del_flag = '0'
+        ORDER BY create_time
+    </select>
+
+    <select id="selectByOwnerAndStatus" resultMap="CrmAttachmentResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_attachment
+        WHERE tenant_id = #{tenantId}
+          AND owner_type = #{ownerType}
+          AND owner_id = #{ownerId}
+          AND status = #{status}
+          AND del_flag = '0'
+        ORDER BY create_time
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.followup.domain.CrmAttachment">
+        INSERT INTO crm_attachment (
+            attachment_id, tenant_id, owner_type, owner_id, file_name, content_type, size_bytes,
+            storage_key, checksum, uploaded_by, uploaded_by_name, status,
+            scan_started_at, scan_completed_at, scan_error_code,
+            create_by, create_time, update_by, update_time, version, del_flag
+        ) VALUES (
+            #{attachmentId}, #{tenantId}, #{ownerType}, #{ownerId}, #{fileName}, #{contentType}, #{sizeBytes},
+            #{storageKey}, #{checksum}, #{uploadedBy}, #{uploadedByName}, #{status},
+            #{scanStartedAt}, #{scanCompletedAt}, #{scanErrorCode},
+            #{createBy}, NOW(), #{updateBy}, NOW(), 0, '0'
+        )
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE crm_attachment
+        SET status = #{status},
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND attachment_id = #{attachmentId}
+          AND del_flag = '0'
+    </update>
+
+    <update id="updateScanResult">
+        UPDATE crm_attachment
+        SET status = #{status},
+            scan_completed_at = #{scanCompletedAt},
+            scan_error_code = #{scanErrorCode},
+            update_by = 'system',
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND attachment_id = #{attachmentId}
+          AND del_flag = '0'
+    </update>
+
+</mapper>

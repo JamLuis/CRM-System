@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.followup.mapper.CrmFollowUpMapper">
+
+    <resultMap type="com.ruoyi.crm.followup.domain.CrmFollowUp" id="CrmFollowUpResult">
+        <result property="followUpId"              column="follow_up_id"/>
+        <result property="tenantId"                column="tenant_id"/>
+        <result property="customerId"              column="customer_id"/>
+        <result property="method"                   column="method"/>
+        <result property="followUpAt"               column="follow_up_at"/>
+        <result property="content"                  column="content"/>
+        <result property="hasNewSigningProject"    column="has_new_signing_project"/>
+        <result property="outcome"                   column="outcome"/>
+        <result property="nextAction"                column="next_action"/>
+        <result property="nextFollowUpAt"            column="next_follow_up_at"/>
+        <result property="noNextFollowUpReason"     column="no_next_follow_up_reason"/>
+        <result property="correctionOfFollowUpId"   column="correction_of_follow_up_id"/>
+        <result property="correctionReason"         column="correction_reason"/>
+        <result property="isCorrected"              column="is_corrected"/>
+        <result property="isVoided"                  column="is_voided"/>
+        <result property="voidedReason"              column="voided_reason"/>
+        <result property="createdBy"                 column="created_by"/>
+        <result property="createdByName"            column="created_by_name"/>
+        <result property="immutableAt"               column="immutable_at"/>
+        <result property="createBy"                 column="create_by"/>
+        <result property="createTime"               column="create_time"/>
+        <result property="updateBy"                 column="update_by"/>
+        <result property="updateTime"               column="update_time"/>
+        <result property="version"                   column="version"/>
+        <result property="delFlag"                   column="del_flag"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        follow_up_id, tenant_id, customer_id, method, follow_up_at, content,
+        has_new_signing_project, outcome, next_action, next_follow_up_at, no_next_follow_up_reason,
+        correction_of_follow_up_id, correction_reason, is_corrected, is_voided, voided_reason,
+        created_by, created_by_name, immutable_at,
+        create_by, create_time, update_by, update_time, version, del_flag
+    </sql>
+
+    <select id="selectByFollowUpId" resultMap="CrmFollowUpResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_follow_up
+        WHERE tenant_id = #{tenantId} AND follow_up_id = #{followUpId} AND del_flag = '0'
+    </select>
+
+    <select id="selectByCustomer" resultMap="CrmFollowUpResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_follow_up
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND is_voided = 0
+          AND del_flag = '0'
+        ORDER BY follow_up_at DESC
+    </select>
+
+    <select id="selectLastEffectiveByCustomer" resultMap="CrmFollowUpResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_follow_up
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND is_voided = 0
+          AND del_flag = '0'
+        ORDER BY follow_up_at DESC
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.followup.domain.CrmFollowUp">
+        INSERT INTO crm_follow_up (
+            follow_up_id, tenant_id, customer_id, method, follow_up_at, content,
+            has_new_signing_project, outcome, next_action, next_follow_up_at, no_next_follow_up_reason,
+            correction_of_follow_up_id, correction_reason, is_corrected, is_voided, voided_reason,
+            created_by, created_by_name, immutable_at,
+            create_by, create_time, update_by, update_time, version, del_flag
+        ) VALUES (
+            #{followUpId}, #{tenantId}, #{customerId}, #{method}, #{followUpAt}, #{content},
+            #{hasNewSigningProject}, #{outcome}, #{nextAction}, #{nextFollowUpAt}, #{noNextFollowUpReason},
+            #{correctionOfFollowUpId}, #{correctionReason}, #{isCorrected}, #{isVoided}, #{voidedReason},
+            #{createdBy}, #{createdByName}, #{immutableAt},
+            #{createBy}, NOW(), #{updateBy}, NOW(), 0, '0'
+        )
+    </insert>
+
+    <update id="markCorrected">
+        UPDATE crm_follow_up
+        SET is_corrected = 1,
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND follow_up_id = #{followUpId}
+          AND del_flag = '0'
+    </update>
+
+    <update id="markVoided">
+        UPDATE crm_follow_up
+        SET is_voided = 1,
+            voided_reason = #{voidedReason},
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND follow_up_id = #{followUpId}
+          AND is_voided = 0
+          AND del_flag = '0'
+    </update>
+
+</mapper>

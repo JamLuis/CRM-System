@@ -25,6 +25,11 @@ class PermissionCodeTest
         assertEquals("crm:contact:write", PermissionCode.CRM_CONTACT_WRITE.getCode());
         assertEquals("crm:followup:read", PermissionCode.CRM_FOLLOWUP_READ.getCode());
         assertEquals("crm:followup:write", PermissionCode.CRM_FOLLOWUP_WRITE.getCode());
+        assertEquals("crm:attachment:read", PermissionCode.CRM_ATTACHMENT_READ.getCode());
+        assertEquals("crm:attachment:write", PermissionCode.CRM_ATTACHMENT_WRITE.getCode());
+        assertEquals("crm:reminder:read", PermissionCode.CRM_REMINDER_READ.getCode());
+        assertEquals("crm:reminder:write", PermissionCode.CRM_REMINDER_WRITE.getCode());
+        assertEquals("crm:health:strategy", PermissionCode.CRM_HEALTH_STRATEGY.getCode());
         assertEquals("crm:opportunity:read", PermissionCode.CRM_OPPORTUNITY_READ.getCode());
         assertEquals("crm:opportunity:write", PermissionCode.CRM_OPPORTUNITY_WRITE.getCode());
         assertEquals("crm:audit:query", PermissionCode.CRM_AUDIT_QUERY.getCode());

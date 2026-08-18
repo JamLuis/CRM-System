@@ -31,6 +31,8 @@
         <result property="nextFollowUpAt"          column="next_follow_up_at"/>
         <result property="lastEffectiveFollowUpAt" column="last_effective_follow_up_at"/>
         <result property="archivedAt"              column="archived_at"/>
+        <result property="followUpStatus"          column="follow_up_status"/>
+        <result property="followUpStatusCalculatedAt" column="follow_up_status_calculated_at"/>
         <result property="createBy"                column="create_by"/>
         <result property="createTime"              column="create_time"/>
         <result property="updateBy"                column="update_by"/>
@@ -47,6 +49,7 @@
         primary_owner_id, primary_owner_name, collaborator_ids,
         creator_dept_id, owner_dept_id,
         next_follow_up_at, last_effective_follow_up_at, archived_at,
+        follow_up_status, follow_up_status_calculated_at,
         create_by, create_time, update_by, update_time, version, del_flag
     </sql>
 
@@ -130,6 +133,7 @@
             primary_owner_id, primary_owner_name, collaborator_ids,
             creator_dept_id, owner_dept_id,
             next_follow_up_at, last_effective_follow_up_at, archived_at,
+            follow_up_status, follow_up_status_calculated_at,
             create_by, create_time, update_by, update_time, version, del_flag
         ) VALUES (
             #{customerId}, #{tenantId}, #{customerCode}, #{name}, #{activeNameKey},
@@ -139,6 +143,7 @@
             #{primaryOwnerId}, #{primaryOwnerName}, #{collaboratorIds},
             #{creatorDeptId}, #{ownerDeptId},
             #{nextFollowUpAt}, #{lastEffectiveFollowUpAt}, #{archivedAt},
+            #{followUpStatus}, #{followUpStatusCalculatedAt},
             #{createBy}, NOW(), #{updateBy}, NOW(), 0, '0'
         )
     </insert>
@@ -196,5 +201,26 @@
           AND version = #{version}
           AND del_flag = '0'
     </update>
+
+    <update id="updateFollowUpStatus">
+        UPDATE crm_customer
+        SET follow_up_status = #{followUpStatus},
+            follow_up_status_calculated_at = NOW(),
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND version = #{version}
+          AND del_flag = '0'
+    </update>
+
+    <select id="selectIdsByFollowUpStatus" resultMap="CrmCustomerResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_customer
+        WHERE tenant_id = #{tenantId}
+          AND follow_up_status = #{followUpStatus}
+          AND del_flag = '0'
+    </select>
 
 </mapper>

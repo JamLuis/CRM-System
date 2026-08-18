@@ -75,6 +75,11 @@ public class CrmCustomer extends CrmBaseEntity
     /** 归档时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date archivedAt;
+    /** 跟进状态(NORMAL/INSUFFICIENT/SEVERE_INSUFFICIENT/NOT_ASSESSED) */
+    private String followUpStatus;
+    /** 跟进状态计算时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date followUpStatusCalculatedAt;
 
     public Long getCustomerId()
     {
@@ -344,5 +349,25 @@ public class CrmCustomer extends CrmBaseEntity
     public void setArchivedAt(Date archivedAt)
     {
         this.archivedAt = archivedAt;
+    }
+
+    public String getFollowUpStatus()
+    {
+        return followUpStatus;
+    }
+
+    public void setFollowUpStatus(String followUpStatus)
+    {
+        this.followUpStatus = followUpStatus;
+    }
+
+    public Date getFollowUpStatusCalculatedAt()
+    {
+        return followUpStatusCalculatedAt;
+    }
+
+    public void setFollowUpStatusCalculatedAt(Date followUpStatusCalculatedAt)
+    {
+        this.followUpStatusCalculatedAt = followUpStatusCalculatedAt;
     }
 }

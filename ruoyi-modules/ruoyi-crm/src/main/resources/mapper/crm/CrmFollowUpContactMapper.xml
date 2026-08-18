@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.followup.mapper.CrmFollowUpContactMapper">
+
+    <resultMap type="com.ruoyi.crm.followup.domain.CrmFollowUpContact" id="CrmFollowUpContactResult">
+        <result property="id"          column="id"/>
+        <result property="tenantId"    column="tenant_id"/>
+        <result property="followUpId"  column="follow_up_id"/>
+        <result property="contactId"   column="contact_id"/>
+    </resultMap>
+
+    <select id="selectByFollowUpId" resultMap="CrmFollowUpContactResult">
+        SELECT id, tenant_id, follow_up_id, contact_id
+        FROM crm_follow_up_contact
+        WHERE tenant_id = #{tenantId} AND follow_up_id = #{followUpId}
+    </select>
+
+    <insert id="batchInsert">
+        INSERT INTO crm_follow_up_contact (id, tenant_id, follow_up_id, contact_id)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.tenantId}, #{item.followUpId}, #{item.contactId})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByFollowUpId">
+        DELETE FROM crm_follow_up_contact
+        WHERE tenant_id = #{tenantId} AND follow_up_id = #{followUpId}
+    </delete>
+
+</mapper>
