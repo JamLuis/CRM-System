@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.customer.mapper.CrmCustomerMapper">
+
+    <resultMap type="com.ruoyi.crm.customer.domain.CrmCustomer" id="CrmCustomerResult">
+        <result property="customerId"             column="customer_id"/>
+        <result property="tenantId"                column="tenant_id"/>
+        <result property="customerCode"            column="customer_code"/>
+        <result property="name"                    column="name"/>
+        <result property="activeNameKey"           column="active_name_key"/>
+        <result property="addressProvince"         column="address_province"/>
+        <result property="addressCity"             column="address_city"/>
+        <result property="addressDistrict"         column="address_district"/>
+        <result property="addressStreet"           column="address_street"/>
+        <result property="addressDetail"           column="address_detail"/>
+        <result property="tags"                    column="tags"/>
+        <result property="lifecycleStage"          column="lifecycle_stage"/>
+        <result property="operatingStatus"         column="operating_status"/>
+        <result property="stageChangeReason"       column="stage_change_reason"/>
+        <result property="statusChangeReason"      column="status_change_reason"/>
+        <result property="plannedResumeAt"         column="planned_resume_at"/>
+        <result property="importance"              column="importance"/>
+        <result property="source"                  column="source"/>
+        <result property="industry"                column="industry"/>
+        <result property="remark"                   column="remark"/>
+        <result property="primaryOwnerId"          column="primary_owner_id"/>
+        <result property="primaryOwnerName"        column="primary_owner_name"/>
+        <result property="collaboratorIds"         column="collaborator_ids"/>
+        <result property="creatorDeptId"           column="creator_dept_id"/>
+        <result property="ownerDeptId"             column="owner_dept_id"/>
+        <result property="nextFollowUpAt"          column="next_follow_up_at"/>
+        <result property="lastEffectiveFollowUpAt" column="last_effective_follow_up_at"/>
+        <result property="archivedAt"              column="archived_at"/>
+        <result property="createBy"                column="create_by"/>
+        <result property="createTime"              column="create_time"/>
+        <result property="updateBy"                column="update_by"/>
+        <result property="updateTime"              column="update_time"/>
+        <result property="version"                  column="version"/>
+        <result property="delFlag"                 column="del_flag"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        customer_id, tenant_id, customer_code, name, active_name_key,
+        address_province, address_city, address_district, address_street, address_detail,
+        tags, lifecycle_stage, operating_status, stage_change_reason, status_change_reason,
+        planned_resume_at, importance, source, industry, remark,
+        primary_owner_id, primary_owner_name, collaborator_ids,
+        creator_dept_id, owner_dept_id,
+        next_follow_up_at, last_effective_follow_up_at, archived_at,
+        create_by, create_time, update_by, update_time, version, del_flag
+    </sql>
+
+    <select id="selectByCustomerId" resultMap="CrmCustomerResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_customer
+        WHERE tenant_id = #{tenantId} AND customer_id = #{customerId} AND del_flag = '0'
+    </select>
+
+    <select id="selectByActiveNameKey" resultMap="CrmCustomerResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_customer
+        WHERE tenant_id = #{tenantId}
+          AND active_name_key = #{activeNameKey}
+          AND operating_status != '已归档'
+          AND del_flag = '0'
+    </select>
+
+    <select id="selectByOwner" resultMap="CrmCustomerResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_customer
+        WHERE tenant_id = #{tenantId}
+          AND primary_owner_id = #{primaryOwnerId}
+          AND del_flag = '0'
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByDept" resultMap="CrmCustomerResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_customer
+        WHERE tenant_id = #{tenantId}
+          AND owner_dept_id = #{ownerDeptId}
+          AND del_flag = '0'
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectAll" resultMap="CrmCustomerResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_customer
+        WHERE tenant_id = #{tenantId} AND del_flag = '0'
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectList" parameterType="com.ruoyi.crm.customer.domain.CrmCustomer" resultMap="CrmCustomerResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_customer
+        WHERE tenant_id = #{tenantId} AND del_flag = '0'
+        <if test="query.name != null and query.name != ''">
+            AND name LIKE CONCAT('%', #{query.name}, '%')
+        </if>
+        <if test="query.operatingStatus != null and query.operatingStatus != ''">
+            AND operating_status = #{query.operatingStatus}
+        </if>
+        <if test="query.lifecycleStage != null and query.lifecycleStage != ''">
+            AND lifecycle_stage = #{query.lifecycleStage}
+        </if>
+        <if test="query.primaryOwnerId != null">
+            AND primary_owner_id = #{query.primaryOwnerId}
+        </if>
+        <if test="query.ownerDeptId != null">
+            AND owner_dept_id = #{query.ownerDeptId}
+        </if>
+        <if test="query.importance != null and query.importance != ''">
+            AND importance = #{query.importance}
+        </if>
+        <if test="query.source != null and query.source != ''">
+            AND source = #{query.source}
+        </if>
+        <if test="query.industry != null and query.industry != ''">
+            AND industry = #{query.industry}
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.customer.domain.CrmCustomer">
+        INSERT INTO crm_customer (
+            customer_id, tenant_id, customer_code, name, active_name_key,
+            address_province, address_city, address_district, address_street, address_detail,
+            tags, lifecycle_stage, operating_status, stage_change_reason, status_change_reason,
+            planned_resume_at, importance, source, industry, remark,
+            primary_owner_id, primary_owner_name, collaborator_ids,
+            creator_dept_id, owner_dept_id,
+            next_follow_up_at, last_effective_follow_up_at, archived_at,
+            create_by, create_time, update_by, update_time, version, del_flag
+        ) VALUES (
+            #{customerId}, #{tenantId}, #{customerCode}, #{name}, #{activeNameKey},
+            #{addressProvince}, #{addressCity}, #{addressDistrict}, #{addressStreet}, #{addressDetail},
+            #{tags}, #{lifecycleStage}, #{operatingStatus}, #{stageChangeReason}, #{statusChangeReason},
+            #{plannedResumeAt}, #{importance}, #{source}, #{industry}, #{remark},
+            #{primaryOwnerId}, #{primaryOwnerName}, #{collaboratorIds},
+            #{creatorDeptId}, #{ownerDeptId},
+            #{nextFollowUpAt}, #{lastEffectiveFollowUpAt}, #{archivedAt},
+            #{createBy}, NOW(), #{updateBy}, NOW(), 0, '0'
+        )
+    </insert>
+
+    <update id="update" parameterType="com.ruoyi.crm.customer.domain.CrmCustomer">
+        UPDATE crm_customer
+        SET name = #{name},
+            address_province = #{addressProvince},
+            address_city = #{addressCity},
+            address_district = #{addressDistrict},
+            address_street = #{addressStreet},
+            address_detail = #{addressDetail},
+            tags = #{tags},
+            lifecycle_stage = #{lifecycleStage},
+            importance = #{importance},
+            source = #{source},
+            industry = #{industry},
+            remark = #{remark},
+            next_follow_up_at = #{nextFollowUpAt},
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND version = #{version}
+          AND del_flag = '0'
+    </update>
+
+    <update id="updateOperatingStatus">
+        UPDATE crm_customer
+        SET operating_status = #{operatingStatus},
+            status_change_reason = #{statusChangeReason},
+            planned_resume_at = #{plannedResumeAt},
+            archived_at = #{archivedAt},
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND version = #{version}
+          AND del_flag = '0'
+    </update>
+
+    <update id="updatePrimaryOwner">
+        UPDATE crm_customer
+        SET primary_owner_id = #{primaryOwnerId},
+            primary_owner_name = #{primaryOwnerName},
+            owner_dept_id = #{ownerDeptId},
+            collaborator_ids = #{collaboratorIds},
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND version = #{version}
+          AND del_flag = '0'
+    </update>
+
+</mapper>

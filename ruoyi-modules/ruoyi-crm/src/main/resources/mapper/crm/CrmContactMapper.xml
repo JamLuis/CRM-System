@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.customer.mapper.CrmContactMapper">
+
+    <resultMap type="com.ruoyi.crm.customer.domain.CrmContact" id="CrmContactResult">
+        <result property="contactId"       column="contact_id"/>
+        <result property="tenantId"        column="tenant_id"/>
+        <result property="customerId"      column="customer_id"/>
+        <result property="name"            column="name"/>
+        <result property="phoneType"       column="phone_type"/>
+        <result property="countryCode"     column="country_code"/>
+        <result property="phoneNumber"     column="phone_number"/>
+        <result property="phoneMasked"     column="phone_masked"/>
+        <result property="email"           column="email"/>
+        <result property="emailMasked"     column="email_masked"/>
+        <result property="wechatId"        column="wechat_id"/>
+        <result property="wechatMasked"    column="wechat_masked"/>
+        <result property="responsibility"  column="responsibility"/>
+        <result property="title"           column="title"/>
+        <result property="isDecisionMaker" column="is_decision_maker"/>
+        <result property="remark"          column="remark"/>
+        <result property="status"           column="status"/>
+        <result property="createBy"        column="create_by"/>
+        <result property="createTime"      column="create_time"/>
+        <result property="updateBy"        column="update_by"/>
+        <result property="updateTime"      column="update_time"/>
+        <result property="version"         column="version"/>
+        <result property="delFlag"         column="del_flag"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        contact_id, tenant_id, customer_id, name, phone_type, country_code,
+        phone_number, phone_masked, email, email_masked, wechat_id, wechat_masked,
+        responsibility, title, is_decision_maker, remark, status,
+        create_by, create_time, update_by, update_time, version, del_flag
+    </sql>
+
+    <select id="selectByContactId" resultMap="CrmContactResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_contact
+        WHERE tenant_id = #{tenantId} AND contact_id = #{contactId} AND del_flag = '0'
+    </select>
+
+    <select id="selectByCustomer" resultMap="CrmContactResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_contact
+        WHERE tenant_id = #{tenantId} AND customer_id = #{customerId} AND del_flag = '0'
+        ORDER BY is_decision_maker DESC, create_time
+    </select>
+
+    <select id="selectByCustomerAndPhone" resultMap="CrmContactResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_contact
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND phone_number = #{phoneNumber}
+          AND del_flag = '0'
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.customer.domain.CrmContact">
+        INSERT INTO crm_contact (
+            contact_id, tenant_id, customer_id, name, phone_type, country_code,
+            phone_number, phone_masked, email, email_masked, wechat_id, wechat_masked,
+            responsibility, title, is_decision_maker, remark, status,
+            create_by, create_time, update_by, update_time, version, del_flag
+        ) VALUES (
+            #{contactId}, #{tenantId}, #{customerId}, #{name}, #{phoneType}, #{countryCode},
+            #{phoneNumber}, #{phoneMasked}, #{email}, #{emailMasked}, #{wechatId}, #{wechatMasked},
+            #{responsibility}, #{title}, #{isDecisionMaker}, #{remark}, #{status},
+            #{createBy}, NOW(), #{updateBy}, NOW(), 0, '0'
+        )
+    </insert>
+
+    <update id="update" parameterType="com.ruoyi.crm.customer.domain.CrmContact">
+        UPDATE crm_contact
+        SET name = #{name},
+            phone_type = #{phoneType},
+            country_code = #{countryCode},
+            phone_number = #{phoneNumber},
+            phone_masked = #{phoneMasked},
+            email = #{email},
+            email_masked = #{emailMasked},
+            wechat_id = #{wechatId},
+            wechat_masked = #{wechatMasked},
+            responsibility = #{responsibility},
+            title = #{title},
+            is_decision_maker = #{isDecisionMaker},
+            remark = #{remark},
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND contact_id = #{contactId}
+          AND version = #{version}
+          AND del_flag = '0'
+    </update>
+
+    <update id="deactivate">
+        UPDATE crm_contact
+        SET status = '已停用',
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND contact_id = #{contactId}
+          AND version = #{version}
+          AND del_flag = '0'
+    </update>
+
+</mapper>

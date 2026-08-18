@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.customer.mapper.CrmOwnerChangeMapper">
+
+    <resultMap type="com.ruoyi.crm.customer.domain.CrmOwnerChange" id="CrmOwnerChangeResult">
+        <result property="id"                          column="id"/>
+        <result property="tenantId"                    column="tenant_id"/>
+        <result property="customerId"                  column="customer_id"/>
+        <result property="changeType"                  column="change_type"/>
+        <result property="previousPrimaryOwnerId"      column="previous_primary_owner_id"/>
+        <result property="previousPrimaryOwnerName"    column="previous_primary_owner_name"/>
+        <result property="targetPrimaryOwnerId"        column="target_primary_owner_id"/>
+        <result property="targetPrimaryOwnerName"      column="target_primary_owner_name"/>
+        <result property="addedCollaboratorIds"        column="added_collaborator_ids"/>
+        <result property="removedCollaboratorIds"     column="removed_collaborator_ids"/>
+        <result property="keepPreviousAsCollaborator" column="keep_previous_as_collaborator"/>
+        <result property="reason"                      column="reason"/>
+        <result property="operatorId"                  column="operator_id"/>
+        <result property="operatorName"                column="operator_name"/>
+        <result property="createTime"                  column="create_time"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        id, tenant_id, customer_id, change_type,
+        previous_primary_owner_id, previous_primary_owner_name,
+        target_primary_owner_id, target_primary_owner_name,
+        added_collaborator_ids, removed_collaborator_ids,
+        keep_previous_as_collaborator, reason,
+        operator_id, operator_name, create_time
+    </sql>
+
+    <insert id="insert" parameterType="com.ruoyi.crm.customer.domain.CrmOwnerChange">
+        INSERT INTO crm_owner_change (
+            id, tenant_id, customer_id, change_type,
+            previous_primary_owner_id, previous_primary_owner_name,
+            target_primary_owner_id, target_primary_owner_name,
+            added_collaborator_ids, removed_collaborator_ids,
+            keep_previous_as_collaborator, reason,
+            operator_id, operator_name, create_time
+        ) VALUES (
+            #{id}, #{tenantId}, #{customerId}, #{changeType},
+            #{previousPrimaryOwnerId}, #{previousPrimaryOwnerName},
+            #{targetPrimaryOwnerId}, #{targetPrimaryOwnerName},
+            #{addedCollaboratorIds}, #{removedCollaboratorIds},
+            #{keepPreviousAsCollaborator}, #{reason},
+            #{operatorId}, #{operatorName}, NOW()
+        )
+    </insert>
+
+    <select id="selectByCustomer" resultMap="CrmOwnerChangeResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_owner_change
+        WHERE tenant_id = #{tenantId} AND customer_id = #{customerId}
+        ORDER BY create_time DESC
+    </select>
+
+</mapper>
