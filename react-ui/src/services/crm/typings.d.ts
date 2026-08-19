@@ -351,4 +351,47 @@ declare namespace API.Crm {
     scopeType?: string;
     createTime?: string;
   }
+
+  // ==================== 数据作业（导入导出） ====================
+
+  /** 作业类型：IMPORT / EXPORT */
+  type DataJobType = 'IMPORT' | 'EXPORT';
+
+  /** 作业状态：PENDING / RUNNING / VALIDATED / SUCCESS / FAILED / EXPIRED */
+  type DataJobStatus = 'PENDING' | 'RUNNING' | 'VALIDATED' | 'SUCCESS' | 'FAILED' | 'EXPIRED';
+
+  /** 导入逐行结果 */
+  interface ImportRowResult {
+    rowNum?: number;
+    name?: string;
+    valid?: boolean;
+    message?: string;
+    /** SUCCESS / FAILED / SKIPPED */
+    result?: string;
+    customerId?: number;
+  }
+
+  /** 数据作业（对应 CrmDataJob） */
+  interface CrmDataJob {
+    jobId?: number;
+    tenantId?: string;
+    jobType?: DataJobType;
+    status?: DataJobStatus;
+    fileName?: string;
+    storageKey?: string;
+    queryCondition?: string;
+    totalCount?: number;
+    successCount?: number;
+    failedCount?: number;
+    rowResults?: string;
+    expireTime?: string;
+    operatorId?: number;
+    operatorName?: string;
+    errorMsg?: string;
+    startTime?: string;
+    finishTime?: string;
+    createBy?: string;
+    createTime?: string;
+    updateTime?: string;
+  }
 }

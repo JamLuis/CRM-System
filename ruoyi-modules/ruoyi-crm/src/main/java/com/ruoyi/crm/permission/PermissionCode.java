@@ -23,6 +23,8 @@ public enum PermissionCode
     CRM_CUSTOMER_STATUS("crm:customer:status"),
     /** 导出客户 */
     CRM_CUSTOMER_EXPORT("crm:customer:export"),
+    /** 导入客户 */
+    CRM_CUSTOMER_IMPORT("crm:customer:import"),
 
     // --- 联系人 ---
     CRM_CONTACT_READ("crm:contact:read"),

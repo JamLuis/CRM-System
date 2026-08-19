@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { history, useAccess } from '@umijs/max';
-import { Button, Dropdown, message, Tag } from 'antd';
+import { Button, Dropdown, message, Tag, Upload } from 'antd';
 import { ActionType, PageContainer, ProColumns, ProTable } from '@ant-design/pro-components';
-import { DownOutlined, PlusOutlined } from '@ant-design/icons';
+import { DownOutlined, ExportOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   addCustomer,
   archiveCustomer,
@@ -14,6 +14,7 @@ import {
   resumeCustomer,
   updateCustomer,
 } from '@/services/crm/customer';
+import { submitExport, uploadImport } from '@/services/crm/datajob';
 import {
   FOLLOW_UP_STATUS_ENUM,
   IMPORTANCE_ENUM,
@@ -65,6 +66,40 @@ const CustomerList: React.FC = () => {
   const canCreate = access.hasPerms('crm:customer:create');
   const canWrite = access.hasPerms('crm:customer:write');
   const canStatus = access.hasPerms('crm:customer:status');
+  const canImport = access.hasPerms('crm:customer:import');
+  const canExport = access.hasPerms('crm:customer:export');
+
+  /** 最近一次列表查询条件（导出继承页面筛选） */
+  const lastQueryRef = useRef<Partial<API.Crm.Customer>>({});
+  const [exporting, setExporting] = useState<boolean>(false);
+
+  /** 提交异步导出（继承当前筛选条件） */
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const resp = await submitExport(lastQueryRef.current);
+      if (resp.code === 200) {
+        messageApi.success('导出任务已提交，请到「作业中心」查看进度并下载');
+      } else {
+        messageApi.error(resp.msg || '导出提交失败');
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  /** 上传导入文件并预检 */
+  const handleImport = async (file: File) => {
+    const resp = await uploadImport(file);
+    if (resp.code === 200 && resp.data) {
+      messageApi.success(
+        `预检完成：共 ${resp.data.totalCount ?? 0} 行，请到「作业中心」确认执行`,
+      );
+    } else {
+      messageApi.error(resp.msg || '导入预检失败');
+    }
+    return false; // 阻止 antd 默认上传
+  };
 
   /** 创建/编辑提交 */
   const handleSubmit = async (values: API.Crm.Customer): Promise<boolean> => {
@@ -222,6 +257,26 @@ const CustomerList: React.FC = () => {
         rowKey="customerId"
         search={{ labelWidth: 100 }}
         toolBarRender={() => [
+          canImport && (
+            <Upload
+              key="import"
+              accept=".xlsx,.xls"
+              showUploadList={false}
+              beforeUpload={(file) => handleImport(file)}
+            >
+              <Button icon={<ImportOutlined />}>导入客户</Button>
+            </Upload>
+          ),
+          canExport && (
+            <Button
+              key="export"
+              icon={<ExportOutlined />}
+              loading={exporting}
+              onClick={handleExport}
+            >
+              导出客户
+            </Button>
+          ),
           canCreate && (
             <Button
               type="primary"
@@ -237,14 +292,16 @@ const CustomerList: React.FC = () => {
           ),
         ]}
         request={async (params) => {
-          const resp = await getCustomerList({
+          const query = {
             name: params.name,
             operatingStatus: params.operatingStatus,
             lifecycleStage: params.lifecycleStage,
             importance: params.importance,
             source: params.source,
             industry: params.industry,
-          });
+          };
+          lastQueryRef.current = query;
+          const resp = await getCustomerList(query);
           if (resp.code === 200) {
             // 后端按数据范围返回全量列表，前端分页
             return { data: resp.data || [], success: true, total: resp.data?.length || 0 };
