@@ -3,6 +3,7 @@ package com.ruoyi.crm.outbox.controller;
 import com.ruoyi.crm.outbox.domain.CrmOutbox;
 import com.ruoyi.crm.outbox.service.OutboxService;
 import com.ruoyi.common.core.domain.R;
+import com.ruoyi.common.security.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +28,7 @@ public class OutboxAdminController
     /**
      * 查询死信列表
      */
+    @RequiresPermissions("crm:admin:outbox")
     @GetMapping("/dead")
     public R<List<CrmOutbox>> deadLetters()
     {
@@ -38,6 +40,7 @@ public class OutboxAdminController
     /**
      * 人工重放死信
      */
+    @RequiresPermissions("crm:admin:outbox")
     @PutMapping("/dead/{id}/replay")
     public R<Void> replayDead(@PathVariable Long id)
     {

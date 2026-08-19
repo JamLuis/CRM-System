@@ -312,4 +312,43 @@ declare namespace API.Crm {
     corpId?: string;
     agentId?: string;
   }
+
+  // ==================== 组织同步 ====================
+
+  interface OrgSyncCursorInfo {
+    source?: string;
+    cursor?: string;
+    lastSyncTime?: string;
+    status?: string;
+  }
+
+  interface OrgSyncResult {
+    deptCount?: number;
+    userCount?: number;
+    userUpdated?: number;
+    userDeactivated?: number;
+    success?: boolean;
+    error?: string;
+  }
+
+  // ==================== 钉钉身份映射 ====================
+
+  interface CrmDingtalkIdentity {
+    id?: number;
+    dingtalkUserId?: string;
+    sysUserId?: number;
+    unionId?: string;
+    createTime?: string;
+    updateTime?: string;
+  }
+
+  // ==================== 角色数据范围 ====================
+
+  /** 范围类型：ALL / DEPT / SELF_CREATED_OR_MEMBER */
+  interface CrmRoleScope {
+    id?: number;
+    roleId?: number;
+    scopeType?: string;
+    createTime?: string;
+  }
 }

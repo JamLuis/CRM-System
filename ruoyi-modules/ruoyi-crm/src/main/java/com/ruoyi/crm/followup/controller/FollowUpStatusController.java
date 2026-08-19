@@ -1,6 +1,7 @@
 package com.ruoyi.crm.followup.controller;
 
 import com.ruoyi.common.core.domain.R;
+import com.ruoyi.common.security.annotation.RequiresPermissions;
 import com.ruoyi.crm.followup.domain.CrmFollowUpStatusStrategy;
 import com.ruoyi.crm.followup.service.FollowUpStatusService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,7 @@ public class FollowUpStatusController
      *
      * @return 重算的客户数量
      */
+    @RequiresPermissions("crm:admin:strategy")
     @PostMapping("/recalculate-batch")
     public R<Integer> recalculateBatch()
     {
@@ -49,6 +51,7 @@ public class FollowUpStatusController
      * @param strategy 策略
      * @return 保存后的策略
      */
+    @RequiresPermissions("crm:admin:strategy")
     @PostMapping("/strategies")
     public R<CrmFollowUpStatusStrategy> saveStrategy(@RequestBody CrmFollowUpStatusStrategy strategy)
     {

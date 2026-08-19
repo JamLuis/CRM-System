@@ -83,6 +83,86 @@ export async function getDingTalkConfig(options?: Record<string, any>) {
   });
 }
 
+// ==================== 组织同步（管理员） ====================
+
+/** 查询组织同步状态 */
+export async function getOrgSyncStatus(options?: Record<string, any>) {
+  return request<API.Crm.R<API.Crm.OrgSyncCursorInfo>>('/api/crm/v1/dingtalk/sync/status', {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
+/** 手动触发全量同步 */
+export async function triggerFullSync(options?: Record<string, any>) {
+  return request<API.Crm.R<API.Crm.OrgSyncResult>>('/api/crm/v1/dingtalk/sync/full', {
+    method: 'POST',
+    ...(options || {}),
+  });
+}
+
+/** 手动触发增量同步 */
+export async function triggerIncrementalSync(options?: Record<string, any>) {
+  return request<API.Crm.R<API.Crm.OrgSyncResult>>('/api/crm/v1/dingtalk/sync/incremental', {
+    method: 'POST',
+    ...(options || {}),
+  });
+}
+
+// ==================== 钉钉身份映射授权（管理员） ====================
+
+/** 查询全部身份映射 */
+export async function listDingtalkIdentities(options?: Record<string, any>) {
+  return request<API.Crm.R<API.Crm.CrmDingtalkIdentity[]>>('/api/crm/v1/dingtalk/identities', {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
+/** 按钉钉用户 ID 查询身份映射 */
+export async function getIdentityByDingtalkUser(dingtalkUserId: string, options?: Record<string, any>) {
+  return request<API.Crm.R<API.Crm.CrmDingtalkIdentity>>(
+    '/api/crm/v1/dingtalk/identities/by-dingtalk-user',
+    { method: 'GET', params: { dingtalkUserId }, ...(options || {}) },
+  );
+}
+
+/** 创建或更新身份映射（授权钉钉用户访问 CRM） */
+export async function mapDingtalkIdentity(
+  data: { dingtalkUserId: string; sysUserId: number; unionId?: string },
+  options?: Record<string, any>,
+) {
+  return request<API.Crm.R<void>>('/api/crm/v1/dingtalk/identities/map', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+    data,
+    ...(options || {}),
+  });
+}
+
+// ==================== 角色数据范围授权（管理员） ====================
+
+/** 查询全部角色数据范围 */
+export async function listRoleScopes(options?: Record<string, any>) {
+  return request<API.Crm.R<API.Crm.CrmRoleScope[]>>('/api/crm/v1/role-scopes', {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
+/** 创建或更新角色数据范围 */
+export async function saveRoleScope(
+  data: { roleId: number; scopeType: string },
+  options?: Record<string, any>,
+) {
+  return request<API.Crm.R<void>>('/api/crm/v1/role-scopes/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+    data,
+    ...(options || {}),
+  });
+}
+
 // ==================== 客户动态（时间线） ====================
 
 /** 查询客户动态时间线（只读） */
