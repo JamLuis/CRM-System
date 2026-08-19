@@ -85,6 +85,38 @@ export default [
     ]
   },
   {
+    name: 'crmH5',
+    path: '/crm/h5',
+    layout: false,
+    routes: [
+      {
+        name: 'H5入口',
+        path: '/crm/h5',
+        component: './Crm/H5/index',
+      },
+      {
+        name: 'H5我的客户',
+        path: '/crm/h5/customers',
+        component: './Crm/H5/customers',
+      },
+      {
+        name: 'H5客户详情',
+        path: '/crm/h5/customer/:id',
+        component: './Crm/H5/customerDetail',
+      },
+      {
+        name: 'H5快速跟踪',
+        path: '/crm/h5/customer/:id/followup',
+        component: './Crm/H5/quickFollowUp',
+      },
+      {
+        name: 'H5我的待办',
+        path: '/crm/h5/todos',
+        component: './Crm/H5/todos',
+      },
+    ]
+  },
+  {
     name: 'tool',
     path: '/tool',
     routes: [

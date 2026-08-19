@@ -38,6 +38,12 @@ public interface CrmReminderDeliveryMapper
                                                        @Param("scheduledBefore") Date scheduledBefore);
 
     /**
+     * 查询指定接收人的待办投递（PENDING/RETRYING/SENT，联查客户名称）
+     */
+    List<CrmReminderDelivery> selectByRecipient(@Param("tenantId") String tenantId,
+                                                @Param("recipientUserId") Long recipientUserId);
+
+    /**
      * 插入投递
      */
     int insert(CrmReminderDelivery delivery);

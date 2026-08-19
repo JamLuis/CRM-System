@@ -211,6 +211,40 @@ declare namespace API.Crm {
     createTime?: string;
   }
 
+  // ==================== 提醒投递（我的待办） ====================
+
+  interface ReminderDelivery {
+    deliveryId?: number;
+    planId?: number;
+    customerId?: number;
+    planKey?: string;
+    plannedFollowUpAt?: string;
+    scheduledAt?: string;
+    recipientUserId?: number;
+    recipientName?: string;
+    /** 状态：PENDING/RETRYING/SENT/COMPLETED/CANCELLED/FAILED */
+    status?: string;
+    retryCount?: number;
+    lastAttemptAt?: string;
+    lastErrorCode?: string;
+    completedAt?: string;
+    /** 客户名称（联查展示字段） */
+    customerName?: string;
+    createTime?: string;
+  }
+
+  // ==================== 钉钉免登 ====================
+
+  interface DingTalkLoginResult {
+    /** MAPPED=已映射（已签发会话）；PENDING_ACTIVATION=待激活 */
+    status?: string;
+    dingtalkUserId?: string;
+    unionId?: string;
+    sysUserId?: number;
+    access_token?: string;
+    expires_in?: number;
+  }
+
   // ==================== 健康度策略 ====================
 
   interface FollowUpStatusStrategy {

@@ -52,6 +52,21 @@ public interface ReminderService
     List<CrmReminderPlan> listByCustomer(Long customerId);
 
     /**
+     * 查询当前用户的待办投递（PENDING/RETRYING/SENT，联查客户名称）
+     *
+     * @return 待办投递列表
+     */
+    List<CrmReminderDelivery> listMyTodos();
+
+    /**
+     * 完成当前用户的一条待办投递
+     *
+     * @param deliveryId 投递ID
+     * @return 更新后的投递
+     */
+    CrmReminderDelivery completeMyTodo(Long deliveryId);
+
+    /**
      * 标记投递为已发送
      *
      * @param deliveryId 投递ID

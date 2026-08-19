@@ -14,6 +14,9 @@ import { PageEnum } from './enums/pagesEnums';
 
 const isDev = process.env.NODE_ENV === 'development';
 
+/** H5（钉钉内）页面路径前缀：自行完成免登，不走 PC 登录重定向 */
+const H5_PATH_PREFIX = '/crm/h5';
+
 
 
 /**
@@ -47,7 +50,8 @@ export async function getInitialState(): Promise<{
   };
   // 如果不是登录页面，执行
   const { location } = history;
-  if (location.pathname !== PageEnum.LOGIN) {
+  // H5（钉钉内）页面由 H5 自行完成免登，不在此拉取用户、不重定向 PC 登录页
+  if (location.pathname !== PageEnum.LOGIN && !location.pathname.startsWith(H5_PATH_PREFIX)) {
     const currentUser = await fetchUserInfo();
     return {
       fetchUserInfo,
@@ -91,6 +95,10 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
+      // H5（钉钉内）页面自行免登，不重定向 PC 登录页
+      if (location.pathname.startsWith(H5_PATH_PREFIX)) {
+        return;
+      }
       // 如果没有登录，重定向到 login
       if (!initialState?.currentUser && location.pathname !== PageEnum.LOGIN) {
         history.push(PageEnum.LOGIN);

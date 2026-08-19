@@ -1,6 +1,7 @@
 package com.ruoyi.crm.followup.controller;
 
 import com.ruoyi.common.core.domain.R;
+import com.ruoyi.crm.followup.domain.CrmReminderDelivery;
 import com.ruoyi.crm.followup.domain.CrmReminderPlan;
 import com.ruoyi.crm.followup.service.ReminderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,5 +44,28 @@ public class ReminderController
     {
         reminderService.cancelByCustomer(customerId, "manual");
         return R.ok();
+    }
+
+    /**
+     * 查询我的待办（当前用户的 PENDING/RETRYING/SENT 投递，联查客户名称）
+     *
+     * @return 待办列表
+     */
+    @GetMapping("/my-todos")
+    public R<List<CrmReminderDelivery>> listMyTodos()
+    {
+        return R.ok(reminderService.listMyTodos());
+    }
+
+    /**
+     * 完成我的一条待办
+     *
+     * @param deliveryId 投递ID
+     * @return 更新后的投递
+     */
+    @PostMapping("/my-todos/{deliveryId}/complete")
+    public R<CrmReminderDelivery> completeMyTodo(@PathVariable Long deliveryId)
+    {
+        return R.ok(reminderService.completeMyTodo(deliveryId));
     }
 }

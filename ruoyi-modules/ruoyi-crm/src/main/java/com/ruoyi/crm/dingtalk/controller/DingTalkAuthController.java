@@ -4,6 +4,7 @@ import com.ruoyi.common.core.domain.R;
 import com.ruoyi.crm.dingtalk.config.DingTalkProperties;
 import com.ruoyi.crm.dingtalk.domain.DingTalkUserInfo;
 import com.ruoyi.crm.dingtalk.service.DingTalkIdentityExchangeService;
+import com.ruoyi.crm.dingtalk.service.DingTalkLoginService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +36,42 @@ public class DingTalkAuthController
     private DingTalkIdentityExchangeService identityExchangeService;
 
     @Autowired
+    private DingTalkLoginService dingTalkLoginService;
+
+    @Autowired
     private DingTalkProperties properties;
+
+    /**
+     * 钉钉 H5 免登登录（签发 CRM 会话）
+     * <p>
+     * 白名单接口（网关 ignore.whites 配置 /crm/v1/dingtalk/auth/login），无需 token。
+     * authCode 一次消费，换取钉钉用户 ID 后查身份映射：
+     * <ul>
+     *   <li>已映射 → 校验用户状态，签发 JWT（status=MAPPED）</li>
+     *   <li>未映射 → 返回 PENDING_ACTIVATION，不签发会话</li>
+     * </ul>
+     *
+     * @param authCode 钉钉免登授权码
+     * @return 登录结果（含 access_token）
+     */
+    @PostMapping("/auth/login")
+    public R<Map<String, Object>> login(@RequestParam("authCode") String authCode)
+    {
+        if (!properties.isEnabled())
+        {
+            return R.fail("DingTalk integration is not enabled");
+        }
+
+        try
+        {
+            return R.ok(dingTalkLoginService.loginByAuthCode(authCode));
+        }
+        catch (Exception e)
+        {
+            log.error("DingTalk login failed", e);
+            return R.fail(e.getMessage());
+        }
+    }
 
     /**
      * H5 免登 exchange

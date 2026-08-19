@@ -9,6 +9,7 @@ import com.ruoyi.crm.followup.domain.ReminderPlanStatus;
 import com.ruoyi.crm.followup.mapper.CrmReminderDeliveryMapper;
 import com.ruoyi.crm.followup.mapper.CrmReminderPlanMapper;
 import com.ruoyi.crm.followup.service.ReminderService;
+import com.ruoyi.common.security.utils.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,6 +126,49 @@ public class ReminderServiceImpl implements ReminderService
     {
         String tenantId = TenantContext.getTenantId();
         return planMapper.selectByCustomer(tenantId, customerId);
+    }
+
+    @Override
+    public List<CrmReminderDelivery> listMyTodos()
+    {
+        String tenantId = TenantContext.getTenantId();
+        Long userId = SecurityUtils.getUserId();
+        return deliveryMapper.selectByRecipient(tenantId, userId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CrmReminderDelivery completeMyTodo(Long deliveryId)
+    {
+        String tenantId = TenantContext.getTenantId();
+        Long userId = SecurityUtils.getUserId();
+        String operatorName = SecurityUtils.getUsername();
+
+        CrmReminderDelivery delivery = deliveryMapper.selectByDeliveryId(tenantId, deliveryId);
+        if (delivery == null)
+        {
+            throw new IllegalArgumentException("待办不存在：" + deliveryId);
+        }
+        if (!userId.equals(delivery.getRecipientUserId()))
+        {
+            throw new IllegalArgumentException("无权操作他人的待办");
+        }
+        if (ReminderDeliveryStatus.COMPLETED.name().equals(delivery.getStatus()))
+        {
+            return delivery;
+        }
+        if (!ReminderDeliveryStatus.PENDING.name().equals(delivery.getStatus())
+                && !ReminderDeliveryStatus.RETRYING.name().equals(delivery.getStatus())
+                && !ReminderDeliveryStatus.SENT.name().equals(delivery.getStatus()))
+        {
+            throw new IllegalStateException("待办状态不允许完成：" + delivery.getStatus());
+        }
+
+        deliveryMapper.updateStatus(tenantId, deliveryId,
+                ReminderDeliveryStatus.COMPLETED.name(), null, null, new Date(), operatorName);
+
+        log.info("My todo completed: tenantId={}, deliveryId={}, userId={}", tenantId, deliveryId, userId);
+        return deliveryMapper.selectByDeliveryId(tenantId, deliveryId);
     }
 
     @Override

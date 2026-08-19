@@ -47,6 +47,8 @@ public class CrmReminderDelivery extends CrmBaseEntity
     /** 完成时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date completedAt;
+    /** 客户名称（联查展示字段，非持久化） */
+    private String customerName;
 
     public Long getDeliveryId()
     {
@@ -176,5 +178,15 @@ public class CrmReminderDelivery extends CrmBaseEntity
     public void setCompletedAt(Date completedAt)
     {
         this.completedAt = completedAt;
+    }
+
+    public String getCustomerName()
+    {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName)
+    {
+        this.customerName = customerName;
     }
 }
