@@ -1,5 +1,6 @@
 package com.ruoyi.crm.customer.domain;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -81,5 +82,17 @@ class CrmCustomerTest
         CrmCustomer customer = new CrmCustomer();
         customer.setTenantId("test-tenant");
         assertEquals("test-tenant", customer.getTenantId());
+    }
+
+    @Test
+    @DisplayName("客户雪花 ID 序列化为字符串避免前端精度丢失")
+    void testCustomerIdSerializedAsString() throws Exception
+    {
+        CrmCustomer customer = new CrmCustomer();
+        customer.setCustomerId(481268411817660416L);
+
+        String json = new ObjectMapper().writeValueAsString(customer);
+
+        assertTrue(json.contains("\"customerId\":\"481268411817660416\""));
     }
 }

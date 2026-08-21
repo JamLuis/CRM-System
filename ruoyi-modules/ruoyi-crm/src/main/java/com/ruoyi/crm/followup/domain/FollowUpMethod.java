@@ -7,7 +7,9 @@ public enum FollowUpMethod
 {
     PHONE("电话"),
     WECHAT("微信"),
-    IN_PERSON("面谈");
+    IN_PERSON("面谈"),
+    EMAIL("邮件"),
+    OTHER("其他");
 
     private final String label;
 

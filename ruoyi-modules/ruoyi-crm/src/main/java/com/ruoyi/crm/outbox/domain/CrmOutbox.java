@@ -24,7 +24,7 @@ public class CrmOutbox extends CrmBaseEntity
     private String eventType;
     /** 事件负载（JSON） */
     private String payload;
-    /** 状态（PENDING/SENT/FAILED/DEAD） */
+    /** 状态（PENDING/SENDING/SENT/FAILED/DEAD） */
     private String status;
     /** 重试次数 */
     private Integer retryCount;

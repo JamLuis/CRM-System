@@ -1,16 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { Button, Form, Input, message, Modal, Popconfirm, Select, Switch, Table, Tag } from 'antd';
+import {
+  addContact,
+  deactivateContact,
+  getContactsByCustomer,
+  updateContact,
+} from '@/services/crm/contact';
 import { useAccess } from '@umijs/max';
-import { addContact, deactivateContact, getContactsByCustomer, updateContact } from '@/services/crm/contact';
+import { Button, Form, Input, message, Modal, Popconfirm, Select, Switch, Table, Tag } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { CRM_HORIZONTAL_FORM_PROPS } from '../../components/formLayout';
 import { PHONE_TYPE_ENUM } from '../../constants';
 
 export type ContactsTabProps = {
-  customerId: number;
+  customerId: API.Crm.Id;
 };
 
 const phoneTypeOptions = Object.keys(PHONE_TYPE_ENUM).map((k) => ({ label: k, value: k }));
 
-/** 客户联系人管理（敏感字段展示后端返回的脱敏值） */
+/** 客户联系人管理（后端按身份返回明文或脱敏值） */
 const ContactsTab: React.FC<ContactsTabProps> = ({ customerId }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const access = useAccess();
@@ -52,7 +58,7 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ customerId }) => {
     }
   };
 
-  const handleDeactivate = async (contactId: number) => {
+  const handleDeactivate = async (contactId: API.Crm.Id) => {
     const resp = await deactivateContact(contactId);
     if (resp.code === 200) {
       messageApi.success('已停用');
@@ -66,18 +72,20 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ customerId }) => {
     { title: '姓名', dataIndex: 'name' },
     {
       title: '电话',
-      render: (_: any, r: API.Crm.Contact) => r.phoneMasked || r.phoneNumber || '-',
+      render: (_: any, r: API.Crm.Contact) => r.phoneNumber || r.phoneMasked || '-',
     },
     {
       title: '邮箱',
-      render: (_: any, r: API.Crm.Contact) => r.emailMasked || r.email || '-',
+      render: (_: any, r: API.Crm.Contact) => r.email || r.emailMasked || '-',
     },
     {
       title: '微信',
-      render: (_: any, r: API.Crm.Contact) => r.wechatMasked || r.wechatId || '-',
+      render: (_: any, r: API.Crm.Contact) => r.wechatId || r.wechatMasked || '-',
     },
     { title: '职责', dataIndex: 'responsibility' },
     { title: '职务', dataIndex: 'title' },
+    { title: '创建人', dataIndex: 'createBy', width: 100 },
+    { title: '创建时间', dataIndex: 'createTime', width: 170 },
     {
       title: '决策人',
       dataIndex: 'isDecisionMaker',
@@ -105,7 +113,10 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ customerId }) => {
                 >
                   编辑
                 </a>
-                <Popconfirm title="确认停用该联系人？" onConfirm={() => handleDeactivate(record.contactId!)}>
+                <Popconfirm
+                  title="确认停用该联系人？"
+                  onConfirm={() => handleDeactivate(record.contactId!)}
+                >
                   <a>停用</a>
                 </Popconfirm>
               </>
@@ -148,7 +159,7 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ customerId }) => {
         width={560}
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} {...CRM_HORIZONTAL_FORM_PROPS}>
           <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
             <Input maxLength={64} />
           </Form.Item>
@@ -158,7 +169,11 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ customerId }) => {
           <Form.Item name="countryCode" label="国家码">
             <Input maxLength={8} placeholder="+86" />
           </Form.Item>
-          <Form.Item name="phoneNumber" label="电话号码" rules={[{ required: true, message: '请输入电话号码' }]}>
+          <Form.Item
+            name="phoneNumber"
+            label="电话号码"
+            rules={[{ required: true, message: '请输入电话号码' }]}
+          >
             <Input maxLength={32} />
           </Form.Item>
           <Form.Item name="email" label="邮箱">

@@ -10,6 +10,9 @@ package com.ruoyi.crm.permission;
  */
 public enum PermissionCode
 {
+    /** 允许进入 CRM；组织同步本身不得隐式授予此权限 */
+    CRM_ACCESS("crm:access"),
+
     // --- 客户 ---
     /** 查看客户 */
     CRM_CUSTOMER_READ("crm:customer:read"),

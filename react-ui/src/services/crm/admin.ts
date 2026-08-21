@@ -111,33 +111,51 @@ export async function triggerIncrementalSync(options?: Record<string, any>) {
 
 // ==================== 钉钉身份映射授权（管理员） ====================
 
-/** 查询全部身份映射 */
-export async function listDingtalkIdentities(options?: Record<string, any>) {
-  return request<API.Crm.R<API.Crm.CrmDingtalkIdentity[]>>('/api/crm/v1/dingtalk/identities', {
+/** 企业通讯录人员及其 CRM 授权状态 */
+export async function listDingTalkDirectoryUsers(
+  params?: { keyword?: string; accessStatus?: 'GRANTED' | 'UNGRANTED' },
+  options?: Record<string, any>,
+) {
+  return request<API.Crm.R<API.Crm.DingTalkDirectoryUser[]>>(
+    '/api/crm/v1/dingtalk/directory-users',
+    { method: 'GET', params, ...(options || {}) },
+  );
+}
+
+/** 可分配且包含 crm:access 的 CRM 角色 */
+export async function listCrmAccessRoles(options?: Record<string, any>) {
+  return request<API.Crm.R<API.Crm.CrmRoleOption[]>>('/api/crm/v1/dingtalk/access-roles', {
     method: 'GET',
     ...(options || {}),
   });
 }
 
-/** 按钉钉用户 ID 查询身份映射 */
-export async function getIdentityByDingtalkUser(dingtalkUserId: string, options?: Record<string, any>) {
-  return request<API.Crm.R<API.Crm.CrmDingtalkIdentity>>(
-    '/api/crm/v1/dingtalk/identities/by-dingtalk-user',
-    { method: 'GET', params: { dingtalkUserId }, ...(options || {}) },
+/** 为企业通讯录人员分配 CRM 角色，身份映射由服务端维护 */
+export async function grantCrmAccess(
+  dingtalkUserId: string,
+  roleIds: number[],
+  options?: Record<string, any>,
+) {
+  return request<API.Crm.R<number>>(
+    `/api/crm/v1/dingtalk/directory-users/${encodeURIComponent(dingtalkUserId)}/access`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+      data: { roleIds },
+      ...(options || {}),
+    },
   );
 }
 
-/** 创建或更新身份映射（授权钉钉用户访问 CRM） */
-export async function mapDingtalkIdentity(
-  data: { dingtalkUserId: string; sysUserId: number; unionId?: string },
+/** 撤销 CRM 角色和免登映射，保留通讯录快照 */
+export async function revokeCrmAccess(
+  dingtalkUserId: string,
   options?: Record<string, any>,
 ) {
-  return request<API.Crm.R<void>>('/api/crm/v1/dingtalk/identities/map', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json;charset=UTF-8' },
-    data,
-    ...(options || {}),
-  });
+  return request<API.Crm.R<void>>(
+    `/api/crm/v1/dingtalk/directory-users/${encodeURIComponent(dingtalkUserId)}/access`,
+    { method: 'DELETE', ...(options || {}) },
+  );
 }
 
 // ==================== 角色数据范围授权（管理员） ====================
@@ -166,7 +184,7 @@ export async function saveRoleScope(
 // ==================== 客户动态（时间线） ====================
 
 /** 查询客户动态时间线（只读） */
-export async function getCustomerTimeline(customerId: number, options?: Record<string, any>) {
+export async function getCustomerTimeline(customerId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.CustomerTimeline[]>>(
     `/api/crm/v1/customers/${customerId}/timeline`,
     { method: 'GET', ...(options || {}) },

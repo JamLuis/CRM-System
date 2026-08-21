@@ -9,7 +9,12 @@ import com.ruoyi.crm.followup.domain.AttachmentOwnerType;
 import com.ruoyi.crm.followup.domain.AttachmentStatus;
 import com.ruoyi.crm.followup.domain.CrmAttachment;
 import com.ruoyi.crm.followup.mapper.CrmAttachmentMapper;
+import com.ruoyi.crm.followup.mapper.CrmFollowUpMapper;
 import com.ruoyi.crm.followup.service.AttachmentService;
+import com.ruoyi.crm.followup.service.MinioStorageService;
+import com.ruoyi.crm.followup.domain.CrmFollowUp;
+import com.ruoyi.crm.permission.CustomerAccessGuard;
+import com.ruoyi.crm.permission.PermissionCode;
 import com.ruoyi.system.api.model.LoginUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 附件服务实现
@@ -34,10 +40,19 @@ public class AttachmentServiceImpl implements AttachmentService
     private CrmAttachmentMapper attachmentMapper;
 
     @Autowired
+    private CrmFollowUpMapper followUpMapper;
+
+    @Autowired
+    private CustomerAccessGuard customerAccessGuard;
+
+    @Autowired
     private IdGenerator idGenerator;
 
     @Autowired
     private AuditEventService auditEventService;
+
+    @Autowired
+    private MinioStorageService minioStorageService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -49,6 +64,8 @@ public class AttachmentServiceImpl implements AttachmentService
 
         // 校验 ownerType
         AttachmentOwnerType ownerType = AttachmentOwnerType.fromString(attachment.getOwnerType());
+        Long customerId = resolveCustomerId(tenantId, ownerType, attachment.getOwnerId());
+        customerAccessGuard.check(customerId, PermissionCode.CRM_ATTACHMENT_WRITE);
 
         // 设置默认值
         attachment.setAttachmentId(idGenerator.nextId());
@@ -60,8 +77,11 @@ public class AttachmentServiceImpl implements AttachmentService
         attachment.setDelFlag("0");
         attachment.setCreateBy(operatorName);
         attachment.setUpdateBy(operatorName);
+        attachment.setStorageKey(buildStorageKey(
+                tenantId, customerId, attachment.getAttachmentId(), attachment.getFileName()));
 
         attachmentMapper.insert(attachment);
+        attachment.setUploadUrl(minioStorageService.createUploadUrl(attachment.getStorageKey()));
 
         recordAudit(tenantId, attachment.getAttachmentId(), attachment.getOwnerId(),
                 operatorId, operatorName, "UPLOAD", null, attachment.getFileName());
@@ -85,14 +105,17 @@ public class AttachmentServiceImpl implements AttachmentService
         {
             throw new IllegalArgumentException("附件不存在：" + attachmentId);
         }
+        customerAccessGuard.check(resolveCustomerId(tenantId,
+                AttachmentOwnerType.fromString(existing.getOwnerType()), existing.getOwnerId()),
+                PermissionCode.CRM_ATTACHMENT_WRITE);
 
         if (!AttachmentStatus.PENDING_SCAN.name().equals(existing.getStatus()))
         {
             throw new IllegalStateException("附件状态不允许确认上传：" + existing.getStatus());
         }
 
-        // 模拟病毒扫描：直接标记为可用
-        // 实际生产中应异步调用杀毒服务
+        // 确认对象已经真实写入 MinIO。ClamAV 按当前整改范围暂缓。
+        minioStorageService.stat(existing.getStorageKey());
         attachmentMapper.updateScanResult(tenantId, attachmentId,
                 AttachmentStatus.AVAILABLE.name(), new Date(), null);
 
@@ -112,14 +135,16 @@ public class AttachmentServiceImpl implements AttachmentService
         {
             throw new IllegalArgumentException("附件不存在：" + attachmentId);
         }
+        customerAccessGuard.check(resolveCustomerId(tenantId,
+                AttachmentOwnerType.fromString(attachment.getOwnerType()), attachment.getOwnerId()),
+                PermissionCode.CRM_ATTACHMENT_READ);
 
         if (!AttachmentStatus.AVAILABLE.name().equals(attachment.getStatus()))
         {
             throw new IllegalStateException("附件不可用，当前状态：" + attachment.getStatus());
         }
 
-        // 实际生产中应在此生成预签名下载URL
-        // 目前直接返回 storageKey
+        attachment.setDownloadUrl(minioStorageService.createDownloadUrl(attachment.getStorageKey()));
         return attachment;
     }
 
@@ -127,6 +152,9 @@ public class AttachmentServiceImpl implements AttachmentService
     public List<CrmAttachment> listByOwner(String ownerType, Long ownerId)
     {
         String tenantId = TenantContext.getTenantId();
+        AttachmentOwnerType type = AttachmentOwnerType.fromString(ownerType);
+        customerAccessGuard.check(resolveCustomerId(tenantId, type, ownerId),
+                PermissionCode.CRM_ATTACHMENT_READ);
         return attachmentMapper.selectByOwner(tenantId, ownerType, ownerId);
     }
 
@@ -134,10 +162,38 @@ public class AttachmentServiceImpl implements AttachmentService
     public List<CrmAttachment> listByOwnerAndStatus(String ownerType, Long ownerId, String status)
     {
         String tenantId = TenantContext.getTenantId();
+        AttachmentOwnerType type = AttachmentOwnerType.fromString(ownerType);
+        customerAccessGuard.check(resolveCustomerId(tenantId, type, ownerId),
+                PermissionCode.CRM_ATTACHMENT_READ);
         return attachmentMapper.selectByOwnerAndStatus(tenantId, ownerType, ownerId, status);
     }
 
     // ==================== Private helpers ====================
+
+    private Long resolveCustomerId(String tenantId, AttachmentOwnerType ownerType, Long ownerId)
+    {
+        if (ownerId == null)
+        {
+            throw new IllegalArgumentException("附件必须关联客户或已有跟进记录");
+        }
+        if (AttachmentOwnerType.CUSTOMER == ownerType)
+        {
+            return ownerId;
+        }
+        CrmFollowUp followUp = followUpMapper.selectByFollowUpId(tenantId, ownerId);
+        if (followUp == null)
+        {
+            throw new IllegalArgumentException("附件关联的跟进记录不存在：" + ownerId);
+        }
+        return followUp.getCustomerId();
+    }
+
+    private String buildStorageKey(String tenantId, Long customerId, Long attachmentId, String fileName)
+    {
+        String safeName = fileName == null ? "file" : fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        return tenantId + "/customers/" + customerId + "/" + attachmentId + "-"
+                + UUID.randomUUID().toString().replace("-", "") + "-" + safeName;
+    }
 
     private void recordAudit(String tenantId, Long attachmentId, Long ownerId,
                              Long operatorId, String operatorName,

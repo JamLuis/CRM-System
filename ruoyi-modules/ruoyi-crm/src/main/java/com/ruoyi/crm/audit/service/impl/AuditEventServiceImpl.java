@@ -1,5 +1,6 @@
 package com.ruoyi.crm.audit.service.impl;
 
+import com.alibaba.fastjson2.JSON;
 import com.ruoyi.crm.audit.domain.CrmAuditEvent;
 import com.ruoyi.crm.audit.mapper.CrmAuditEventMapper;
 import com.ruoyi.crm.audit.service.AuditEventService;
@@ -31,7 +32,29 @@ public class AuditEventServiceImpl implements AuditEventService
         {
             event.setId(idGenerator.nextId());
         }
+        event.setBeforeData(normalizeJson(event.getBeforeData()));
+        event.setAfterData(normalizeJson(event.getAfterData()));
         auditEventMapper.insert(event);
+    }
+
+    /**
+     * 数据库列为 JSON；兼容历史调用方传入的普通文本，同时保留已经合法的 JSON。
+     */
+    private String normalizeJson(String value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+        try
+        {
+            JSON.parse(value);
+            return value;
+        }
+        catch (Exception ignored)
+        {
+            return JSON.toJSONString(value);
+        }
     }
 
     @Override

@@ -6,6 +6,8 @@ import com.ruoyi.crm.permission.PermissionContext;
 import com.ruoyi.crm.permission.PermissionDeniedException;
 import com.ruoyi.crm.permission.PermissionService;
 import com.ruoyi.crm.permission.ScopeType;
+import com.ruoyi.crm.permission.mapper.CrmDataScopeMapper;
+import com.ruoyi.crm.common.tenant.TenantContext;
 import com.ruoyi.crm.tenant.domain.CrmRoleScope;
 import com.ruoyi.crm.tenant.mapper.CrmRoleScopeMapper;
 import com.ruoyi.system.api.model.LoginUser;
@@ -45,6 +47,9 @@ public class PermissionServiceImpl implements PermissionService
 
     @Autowired
     private CrmRoleScopeMapper roleScopeMapper;
+
+    @Autowired
+    private CrmDataScopeMapper dataScopeMapper;
 
     @Override
     public boolean can(PermissionContext context)
@@ -102,14 +107,24 @@ public class PermissionServiceImpl implements PermissionService
         LoginUser loginUser = SecurityUtils.getLoginUser();
         if (loginUser != null && loginUser.getSysUser() != null && loginUser.getSysUser().getRoles() != null)
         {
+            ScopeType effective = ScopeType.SELF_CREATED_OR_MEMBER;
             for (com.ruoyi.system.api.domain.SysRole role : loginUser.getSysUser().getRoles())
             {
                 CrmRoleScope scope = roleScopeMapper.selectByRoleId(tenantId, role.getRoleId());
                 if (scope != null)
                 {
-                    return ScopeType.fromString(scope.getScopeType());
+                    ScopeType roleScope = ScopeType.fromString(scope.getScopeType());
+                    if (roleScope == ScopeType.ALL)
+                    {
+                        return ScopeType.ALL;
+                    }
+                    if (roleScope == ScopeType.DEPT)
+                    {
+                        effective = ScopeType.DEPT;
+                    }
                 }
             }
+            return effective;
         }
 
         // 默认最小权限
@@ -122,7 +137,7 @@ public class PermissionServiceImpl implements PermissionService
     private boolean checkDataScope(PermissionContext context)
     {
         // 获取当前用户的数据范围
-        ScopeType scopeType = getScopeType(null, context.getOperatorId());
+        ScopeType scopeType = getScopeType(TenantContext.getTenantId(), context.getOperatorId());
 
         switch (scopeType)
         {
@@ -132,9 +147,10 @@ public class PermissionServiceImpl implements PermissionService
 
             case DEPT:
                 // 本部门及下级部门
-                // 检查操作人部门是否与客户主负责人部门相同
-                // 实际实现中需要递归检查子部门，这里简化为同部门检查
-                return context.isSameDept();
+                return context.getOperatorDeptId() != null
+                        && context.getOwnerDeptId() != null
+                        && dataScopeMapper.countDeptOrDescendant(
+                                context.getOperatorDeptId(), context.getOwnerDeptId()) > 0;
 
             case SELF_CREATED_OR_MEMBER:
             default:
@@ -163,6 +179,8 @@ public class PermissionServiceImpl implements PermissionService
             case CRM_CUSTOMER_READ:
             case CRM_CONTACT_READ:
             case CRM_FOLLOWUP_READ:
+            case CRM_ATTACHMENT_READ:
+            case CRM_REMINDER_READ:
             case CRM_OPPORTUNITY_READ:
             case CRM_AUDIT_QUERY:
             case CRM_CUSTOMER_EXPORT:

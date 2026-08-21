@@ -35,6 +35,12 @@ const TYPE_META: Record<string, { color: string; text: string }> = {
   EXPORT: { color: 'green', text: '导出' },
 };
 
+const IMPORT_TYPE_META: Record<string, string> = {
+  CUSTOMER: '客户',
+  CONTACT: '联系人',
+  FOLLOW_UP: '跟进记录',
+};
+
 /** 作业中心：导入导出作业列表、逐行结果与下载 */
 const JobCenter: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage();
@@ -77,7 +83,7 @@ const JobCenter: React.FC = () => {
   }, []);
 
   const openDetail = async (job: API.Crm.CrmDataJob) => {
-    const resp = await getDataJob(job.jobId as number);
+    const resp = await getDataJob(job.jobId!);
     if (resp.code === 200 && resp.data) {
       setDetail(resp.data);
       try {
@@ -96,7 +102,7 @@ const JobCenter: React.FC = () => {
       title: '确认执行导入',
       content: `共 ${job.totalCount ?? 0} 行，将仅执行预检通过的行，确认继续？`,
       onOk: async () => {
-        const resp = await confirmImport(job.jobId as number);
+        const resp = await confirmImport(job.jobId!);
         if (resp.code === 200 && resp.data) {
           messageApi.success(
             `导入完成：成功 ${resp.data.successCount ?? 0}，失败 ${resp.data.failedCount ?? 0}`,
@@ -114,7 +120,7 @@ const JobCenter: React.FC = () => {
       messageApi.warning('导出文件已过期，请重新导出');
       return;
     }
-    window.open(getExportDownloadUrl(job.jobId as number), '_blank');
+    window.open(getExportDownloadUrl(job.jobId!), '_blank');
   };
 
   const columns: ColumnsType<API.Crm.CrmDataJob> = [
@@ -133,6 +139,13 @@ const JobCenter: React.FC = () => {
       render: (v: string) => (
         <Tag color={STATUS_META[v]?.color}>{STATUS_META[v]?.text || v}</Tag>
       ),
+    },
+    {
+      title: '导入对象',
+      dataIndex: 'importType',
+      width: 100,
+      render: (v?: string, record?: API.Crm.CrmDataJob) =>
+        record?.jobType === 'IMPORT' ? IMPORT_TYPE_META[v || 'CUSTOMER'] || v : '-',
     },
     {
       title: '文件 / 条件',
@@ -209,7 +222,7 @@ const JobCenter: React.FC = () => {
 
   const rowResultColumns: ColumnsType<API.Crm.ImportRowResult> = [
     { title: '行号', dataIndex: 'rowNum', width: 60 },
-    { title: '客户名称', dataIndex: 'name', ellipsis: true },
+    { title: '客户 / 记录', dataIndex: 'name', ellipsis: true },
     {
       title: '预检',
       dataIndex: 'valid',
@@ -263,6 +276,9 @@ const JobCenter: React.FC = () => {
             <p>
               <b>类型：</b>
               {TYPE_META[detail.jobType || '']?.text || detail.jobType}
+              {detail.jobType === 'IMPORT' && (
+                <span> · {IMPORT_TYPE_META[detail.importType || 'CUSTOMER'] || detail.importType}</span>
+              )}
               <span style={{ marginLeft: 16 }}>
                 <b>状态：</b>
                 {STATUS_META[detail.status || '']?.text || detail.status}

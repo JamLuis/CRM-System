@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from '@umijs/max';
 import { Button, Result, Spin, Tabs, Tag } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { history } from '@umijs/max';
 import { getCustomer } from '@/services/crm/customer';
-import { FOLLOW_UP_STATUS_ENUM, OPERATING_STATUS_ENUM } from '../constants';
+import { FOLLOW_UP_STATUS_ENUM, IMPORTANCE_ENUM, OPERATING_STATUS_ENUM } from '../constants';
+import '../components/CrmPage.less';
 import OverviewTab from './components/OverviewTab';
 import MembersTab from './components/MembersTab';
 import ContactsTab from './components/ContactsTab';
@@ -16,7 +16,7 @@ import TimelineTab from './components/TimelineTab';
 /** 客户 360 详情页 */
 const CustomerDetail: React.FC = () => {
   const params = useParams<{ id: string }>();
-  const customerId = Number(params.id);
+  const customerId = params.id || '';
 
   const [customer, setCustomer] = useState<API.Crm.Customer>();
   const [loading, setLoading] = useState(false);
@@ -55,22 +55,8 @@ const CustomerDetail: React.FC = () => {
   return (
     <PageContainer
       header={{
-        title: (
-          <span>
-            <Button
-              type="text"
-              icon={<ArrowLeftOutlined />}
-              onClick={() => history.push('/crm/customer')}
-            />
-            {customer?.name || '客户详情'}
-            {statusMeta && (
-              <Tag style={{ marginLeft: 8 }} color="blue">
-                {statusMeta.text}
-              </Tag>
-            )}
-            {followUpMeta && <Tag color={followUpMeta.color}>{followUpMeta.text}</Tag>}
-          </span>
-        ),
+        title: '客户详情',
+        onBack: () => history.push('/crm/customer'),
       }}
     >
       <Spin spinning={loading}>
@@ -87,17 +73,32 @@ const CustomerDetail: React.FC = () => {
           />
         ) : (
           customer && (
-            <Tabs
-              defaultActiveKey="overview"
-              items={[
+            <>
+              <div className="crmDetailHeader">
+                <span className="crmDetailName">{customer.name}</span>
+                <span className="crmDetailMeta">
+                  {statusMeta && <Tag color="blue">{statusMeta.text}</Tag>}
+                  {followUpMeta && <Tag color={followUpMeta.color}>{followUpMeta.text}</Tag>}
+                  <span>负责人：{customer.sourceOwnerName || customer.primaryOwnerName || '-'}</span>
+                  <span>
+                    重要程度：
+                    {IMPORTANCE_ENUM[customer.importance || '']?.text || customer.importance || '-'}
+                  </span>
+                </span>
+              </div>
+              <Tabs
+                className="crmDetailTabs"
+                defaultActiveKey="overview"
+                items={[
                 { key: 'overview', label: '概览', children: <OverviewTab customer={customer} /> },
                 { key: 'members', label: '成员', children: <MembersTab customerId={customerId} /> },
                 { key: 'contacts', label: '联系人', children: <ContactsTab customerId={customerId} /> },
                 { key: 'followups', label: '跟踪', children: <FollowUpsTab customerId={customerId} /> },
                 { key: 'reminders', label: '计划', children: <RemindersTab customerId={customerId} /> },
                 { key: 'timeline', label: '动态', children: <TimelineTab customerId={customerId} /> },
-              ]}
-            />
+                ]}
+              />
+            </>
           )
         )}
       </Spin>

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { history } from '@umijs/max';
+import { Empty as PcEmpty, Button as PcButton, Card, Popconfirm, Space, Table, Tag as PcTag, message } from 'antd';
 import { Button, Dialog, Empty, List, PullToRefresh, SwipeAction, Tag, Toast } from 'antd-mobile';
 import { completeMyTodo, getMyTodos } from '@/services/crm/mobile';
 import H5Layout from './H5Layout';
@@ -10,6 +11,13 @@ const DELIVERY_STATUS_TAG: Record<string, { text: string; color: string }> = {
   PENDING: { text: '待处理', color: 'primary' },
   RETRYING: { text: '重试中', color: 'warning' },
   SENT: { text: '已送达', color: 'success' },
+};
+
+/** PC 表格状态标签颜色 */
+const PC_STATUS_TAG: Record<string, { text: string; color: string }> = {
+  PENDING: { text: '待处理', color: 'blue' },
+  RETRYING: { text: '重试中', color: 'orange' },
+  SENT: { text: '已送达', color: 'green' },
 };
 
 /**
@@ -61,6 +69,86 @@ const H5Todos: React.FC = () => {
     }
   };
 
+  /** 桌面端完成待办（Popconfirm 确认） */
+  const handleCompletePc = async (item: API.Crm.ReminderDelivery) => {
+    try {
+      const resp = await completeMyTodo(item.deliveryId as number, { skipErrorHandler: true });
+      if (resp.code === 200) {
+        message.success('已完成');
+        loadData();
+      } else {
+        message.error(resp.msg || '操作失败');
+      }
+    } catch (e) {
+      console.error('complete todo failed', e);
+      message.error('操作失败，请重试');
+    }
+  };
+
+  // ---------- 桌面/Pad 端：完整表格 ----------
+  const pcContent = (
+    <Card>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <span style={{ fontWeight: 600 }}>我的待办</span>
+        <PcButton onClick={loadData}>刷新</PcButton>
+      </div>
+      {todos.length === 0 && loaded ? (
+        <PcEmpty description="暂无待办，太棒了" />
+      ) : (
+        <Table
+          rowKey="deliveryId"
+          size="middle"
+          loading={!loaded}
+          dataSource={todos}
+          pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条` }}
+          columns={[
+            {
+              title: '客户',
+              dataIndex: 'customerName',
+              ellipsis: true,
+              render: (name: string, r) => (
+                <a onClick={() => history.push(`/crm/h5/customer/${r.customerId}`)}>
+                  {name || '未知客户'}
+                </a>
+              ),
+            },
+            {
+              title: '计划跟踪时间',
+              dataIndex: 'plannedFollowUpAt',
+              width: 160,
+              render: (v?: string) => (v ? v.slice(0, 16) : '-'),
+            },
+            {
+              title: '状态',
+              dataIndex: 'status',
+              width: 100,
+              render: (v?: string) =>
+                v && PC_STATUS_TAG[v] ? <PcTag color={PC_STATUS_TAG[v].color}>{PC_STATUS_TAG[v].text}</PcTag> : '-',
+            },
+            {
+              title: '重试次数',
+              dataIndex: 'retryCount',
+              width: 90,
+              render: (v?: number) => v ?? 0,
+            },
+            {
+              title: '操作',
+              width: 140,
+              render: (_: unknown, r) => (
+                <Space>
+                  <a onClick={() => history.push(`/crm/h5/customer/${r.customerId}`)}>详情</a>
+                  <Popconfirm title="确认完成该待办？" onConfirm={() => handleCompletePc(r)}>
+                    <a>完成</a>
+                  </Popconfirm>
+                </Space>
+              ),
+            },
+          ]}
+        />
+      )}
+    </Card>
+  );
+
   return (
     <H5Layout
       state={state}
@@ -68,6 +156,8 @@ const H5Todos: React.FC = () => {
       onReLogin={reLogin}
       onGotoPcLogin={gotoPcLogin}
       title={`我的待办${currentUser?.nickName ? ` · ${currentUser.nickName}` : ''}`}
+      currentUser={currentUser}
+      pcContent={pcContent}
     >
       <PullToRefresh onRefresh={loadData}>
         {todos.length === 0 && loaded ? (

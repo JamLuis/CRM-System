@@ -79,6 +79,14 @@ public interface RemoteUserService
                                             @RequestHeader(SecurityConstants.FROM_SOURCE) String source);
 
     /**
+     * 内部调用：替换用户角色（CRM 显式授权用）
+     */
+    @PutMapping("/user/inner/authRole")
+    public R<Boolean> innerAuthRoles(@RequestParam("userId") Long userId,
+                                     @RequestBody Long[] roleIds,
+                                     @RequestHeader(SecurityConstants.FROM_SOURCE) String source);
+
+    /**
      * 内部调用：按手机号查询用户（钉钉身份映射用）
      *
      * @param phonenumber 手机号

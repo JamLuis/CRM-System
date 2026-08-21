@@ -64,10 +64,19 @@ public class DingTalkProperties
      */
     private String getDeptUserListPath = "/topapi/v2/user/list";
 
+    /** 发送企业工作通知 */
+    private String sendWorkNotificationPath = "/topapi/message/corpconversation/asyncsend_v2";
+
     /**
      * access_token 缓存时间（秒），默认 7000（钉钉 token 有效期 7200s）
      */
     private long tokenCacheSeconds = 7000;
+
+    /** 钉钉根部门 ID。 */
+    private Long rootDeptId = 1L;
+
+    /** 钉钉根部门对应的 RuoYi 系统根部门 ID。 */
+    private Long systemRootDeptId = 100L;
 
     // --- getters/setters ---
 
@@ -171,6 +180,16 @@ public class DingTalkProperties
         this.getDeptUserListPath = getDeptUserListPath;
     }
 
+    public String getSendWorkNotificationPath()
+    {
+        return sendWorkNotificationPath;
+    }
+
+    public void setSendWorkNotificationPath(String sendWorkNotificationPath)
+    {
+        this.sendWorkNotificationPath = sendWorkNotificationPath;
+    }
+
     public long getTokenCacheSeconds()
     {
         return tokenCacheSeconds;
@@ -179,6 +198,26 @@ public class DingTalkProperties
     public void setTokenCacheSeconds(long tokenCacheSeconds)
     {
         this.tokenCacheSeconds = tokenCacheSeconds;
+    }
+
+    public Long getRootDeptId()
+    {
+        return rootDeptId;
+    }
+
+    public void setRootDeptId(Long rootDeptId)
+    {
+        this.rootDeptId = rootDeptId;
+    }
+
+    public Long getSystemRootDeptId()
+    {
+        return systemRootDeptId;
+    }
+
+    public void setSystemRootDeptId(Long systemRootDeptId)
+    {
+        this.systemRootDeptId = systemRootDeptId;
     }
 
     /**

@@ -31,6 +31,19 @@ public interface CrmOutboxMapper
                                          @Param("limit") int limit);
 
     /**
+     * 发送前抢占消息，避免多实例同时投递。
+     */
+    int claimForDelivery(@Param("id") Long id,
+                         @Param("tenantId") String tenantId,
+                         @Param("version") int version);
+
+    /**
+     * 将超时未完成的 SENDING 恢复为 FAILED，供故障后重试。
+     */
+    int recoverStaleSending(@Param("tenantId") String tenantId,
+                            @Param("staleSeconds") int staleSeconds);
+
+    /**
      * 更新消息状态（乐观锁）
      */
     int updateStatus(@Param("id") Long id,

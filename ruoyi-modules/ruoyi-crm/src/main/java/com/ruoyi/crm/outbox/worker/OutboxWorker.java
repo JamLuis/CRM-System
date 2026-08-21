@@ -50,6 +50,9 @@ public class OutboxWorker
     @Value("${crm.outbox.tenant-id:default}")
     private String defaultTenantId;
 
+    @Value("${crm.outbox.sending-timeout-seconds:300}")
+    private int sendingTimeoutSeconds;
+
     /**
      * 每 30 秒扫描一次待发送消息
      */
@@ -65,6 +68,11 @@ public class OutboxWorker
     @Scheduled(fixedDelayString = "${crm.outbox.retry-interval-ms:60000}")
     public void processRetry()
     {
+        int recovered = outboxService.recoverStaleSending(defaultTenantId, sendingTimeoutSeconds);
+        if (recovered > 0)
+        {
+            log.warn("Recovered {} stale SENDING outbox messages, tenant={}", recovered, defaultTenantId);
+        }
         processRetryBatch(defaultTenantId);
     }
 
@@ -112,9 +120,17 @@ public class OutboxWorker
 
     private void dispatchOne(String tenantId, CrmOutbox msg)
     {
+        if (!outboxService.claimForDelivery(msg.getId(), tenantId, msg.getVersion()))
+        {
+            log.debug("Outbox message claimed by another instance, id={}", msg.getId());
+            return;
+        }
+        msg.setVersion(msg.getVersion() + 1);
+        msg.setStatus("SENDING");
         boolean success = false;
         try
         {
+            TenantContext.setTenantId(msg.getTenantId());
             OutboxDispatcher dispatcher = findDispatcher(msg.getEventType());
             if (dispatcher == null)
             {
@@ -127,6 +143,10 @@ public class OutboxWorker
         catch (Exception e)
         {
             log.error("Dispatch error, id={}, eventType={}", msg.getId(), msg.getEventType(), e);
+        }
+        finally
+        {
+            TenantContext.clear();
         }
 
         int newRetryCount = msg.getRetryCount() + (success ? 0 : 1);
@@ -168,6 +188,7 @@ public class OutboxWorker
     @PostConstruct
     public void init()
     {
-        log.info("OutboxWorker initialized, batchSize={}, maxRetries={}, tenant={}", batchSize, maxRetries, defaultTenantId);
+        log.info("OutboxWorker initialized, batchSize={}, maxRetries={}, sendingTimeoutSeconds={}, tenant={}",
+                batchSize, maxRetries, sendingTimeoutSeconds, defaultTenantId);
     }
 }

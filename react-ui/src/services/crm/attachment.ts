@@ -4,7 +4,7 @@ import { request } from '@umijs/max';
 export async function preSignUpload(
   data: {
     ownerType: string;
-    ownerId?: number;
+    ownerId?: number | string;
     fileName: string;
     contentType: string;
     sizeBytes: number;

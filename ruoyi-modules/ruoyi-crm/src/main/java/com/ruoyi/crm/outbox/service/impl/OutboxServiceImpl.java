@@ -53,6 +53,18 @@ public class OutboxServiceImpl implements OutboxService
     }
 
     @Override
+    public boolean claimForDelivery(Long id, String tenantId, int version)
+    {
+        return outboxMapper.claimForDelivery(id, tenantId, version) > 0;
+    }
+
+    @Override
+    public int recoverStaleSending(String tenantId, int staleSeconds)
+    {
+        return outboxMapper.recoverStaleSending(tenantId, staleSeconds);
+    }
+
+    @Override
     public boolean updateStatus(Long id, String tenantId, String status, int retryCount, Date nextRetryTime, int version)
     {
         return outboxMapper.updateStatus(id, tenantId, status, retryCount, nextRetryTime, version) > 0;

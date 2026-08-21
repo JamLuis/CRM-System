@@ -9,16 +9,22 @@ import com.ruoyi.crm.common.id.IdGenerator;
 import com.ruoyi.crm.common.tenant.TenantContext;
 import com.ruoyi.crm.customer.domain.CrmContact;
 import com.ruoyi.crm.customer.domain.CrmCustomer;
+import com.ruoyi.crm.customer.domain.LifecycleStage;
 import com.ruoyi.crm.customer.mapper.CrmContactMapper;
 import com.ruoyi.crm.customer.mapper.CrmCustomerMapper;
 import com.ruoyi.crm.customer.service.CustomerService;
 import com.ruoyi.crm.datajob.config.DataJobProperties;
 import com.ruoyi.crm.datajob.domain.CrmDataJob;
+import com.ruoyi.crm.datajob.domain.DataImportType;
 import com.ruoyi.crm.datajob.domain.DataJobStatus;
 import com.ruoyi.crm.datajob.domain.DataJobType;
 import com.ruoyi.crm.datajob.domain.ImportRowResult;
 import com.ruoyi.crm.datajob.mapper.CrmDataJobMapper;
 import com.ruoyi.crm.datajob.service.DataJobService;
+import com.ruoyi.crm.followup.domain.CrmFollowUp;
+import com.ruoyi.crm.followup.domain.CrmFollowUpContact;
+import com.ruoyi.crm.followup.mapper.CrmFollowUpContactMapper;
+import com.ruoyi.crm.followup.mapper.CrmFollowUpMapper;
 import com.ruoyi.crm.permission.PermissionCode;
 import com.ruoyi.crm.permission.PermissionContext;
 import com.ruoyi.crm.permission.PermissionService;
@@ -26,9 +32,11 @@ import com.ruoyi.crm.permission.ScopeType;
 import com.ruoyi.system.api.model.LoginUser;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,13 +52,19 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -95,6 +109,12 @@ public class DataJobServiceImpl implements DataJobService
     private CrmContactMapper contactMapper;
 
     @Autowired
+    private CrmFollowUpMapper followUpMapper;
+
+    @Autowired
+    private CrmFollowUpContactMapper followUpContactMapper;
+
+    @Autowired
     private CustomerService customerService;
 
     @Autowired
@@ -112,12 +132,13 @@ public class DataJobServiceImpl implements DataJobService
     // ==================== 导入 ====================
 
     @Override
-    public CrmDataJob uploadImport(MultipartFile file)
+    public CrmDataJob uploadImport(MultipartFile file, String importTypeValue)
     {
         String tenantId = TenantContext.getTenantId();
         Long operatorId = SecurityUtils.getUserId();
         String operatorName = SecurityUtils.getUsername();
         checkPermission(PermissionCode.CRM_CUSTOMER_IMPORT);
+        DataImportType importType = DataImportType.fromString(importTypeValue);
 
         if (file == null || file.isEmpty())
         {
@@ -130,10 +151,10 @@ public class DataJobServiceImpl implements DataJobService
         }
 
         // 1. 解析 Excel
-        List<ImportCustomerRow> rows;
+        List<?> rows;
         try (InputStream is = file.getInputStream())
         {
-            rows = new ExcelUtil<>(ImportCustomerRow.class).importExcel(is);
+            rows = readImportRows(is, importType);
         }
         catch (Exception e)
         {
@@ -150,14 +171,7 @@ public class DataJobServiceImpl implements DataJobService
         }
 
         // 2. 逐行预检（不写业务数据）
-        Set<String> seenNameKeys = new HashSet<>();
-        List<ImportRowResult> results = new ArrayList<>();
-        int rowNum = 0;
-        for (ImportCustomerRow row : rows)
-        {
-            rowNum++;
-            results.add(validateImportRow(tenantId, row, rowNum, seenNameKeys));
-        }
+        List<ImportRowResult> results = validateImportRows(tenantId, importType, rows);
 
         // 3. 保存源文件与作业记录
         Long jobId = idGenerator.nextId();
@@ -167,6 +181,7 @@ public class DataJobServiceImpl implements DataJobService
         job.setJobId(jobId);
         job.setTenantId(tenantId);
         job.setJobType(DataJobType.IMPORT.name());
+        job.setImportType(importType.name());
         job.setStatus(DataJobStatus.VALIDATED.name());
         job.setFileName(originalName);
         job.setStorageKey(storageKey);
@@ -182,8 +197,8 @@ public class DataJobServiceImpl implements DataJobService
         job.setUpdateBy(operatorName);
         dataJobMapper.insert(job);
 
-        log.info("Import pre-checked: tenantId={}, jobId={}, rows={}, operator={}",
-                tenantId, jobId, rows.size(), operatorName);
+        log.info("Import pre-checked: tenantId={}, jobId={}, importType={}, rows={}, operator={}",
+                tenantId, jobId, importType, rows.size(), operatorName);
         return job;
     }
 
@@ -205,8 +220,9 @@ public class DataJobServiceImpl implements DataJobService
             throw new IllegalArgumentException("仅上传人可确认执行该导入作业");
         }
 
+        DataImportType importType = DataImportType.fromString(job.getImportType());
         List<ImportRowResult> results = JSON.parseArray(job.getRowResults(), ImportRowResult.class);
-        List<ImportCustomerRow> rows = readSourceRows(tenantId, job);
+        List<?> rows = readSourceRows(tenantId, job, importType);
         if (rows.size() != results.size())
         {
             throw new IllegalStateException("源文件行数与预检结果不一致，请重新上传");
@@ -218,47 +234,44 @@ public class DataJobServiceImpl implements DataJobService
         job.setUpdateBy(operatorName);
         dataJobMapper.update(job);
 
-        int success = 0;
-        int failed = 0;
-        for (int i = 0; i < rows.size(); i++)
+        int[] counts;
+        switch (importType)
         {
-            ImportRowResult result = results.get(i);
-            if (result.getValid() == null || !result.getValid())
-            {
-                // 预检未通过的行跳过
-                result.setResult("SKIPPED");
-                continue;
-            }
-            try
-            {
-                CrmCustomer customer = buildCustomerFromRow(rows.get(i), operatorId, operatorName);
-                CrmCustomer created = customerService.create(customer);
-                result.setResult("SUCCESS");
-                result.setCustomerId(created.getCustomerId());
-                success++;
-            }
-            catch (Exception e)
-            {
-                result.setResult("FAILED");
-                result.setMessage(e.getMessage());
-                failed++;
-            }
+            case CONTACT:
+                counts = confirmContactRows(tenantId, castRows(rows, ImportContactRow.class),
+                        results, operatorName);
+                break;
+            case FOLLOW_UP:
+                counts = confirmFollowUpRows(tenantId, castRows(rows, ImportFollowUpRow.class),
+                        results, operatorId, operatorName);
+                customerMapper.refreshLastEffectiveFollowUpAt(tenantId, operatorName);
+                break;
+            case CUSTOMER:
+            default:
+                counts = confirmCustomerRows(tenantId, castRows(rows, ImportCustomerRow.class),
+                        results, operatorId, operatorName);
+                break;
         }
+        int success = counts[0];
+        int failed = counts[1];
 
-        job.setStatus(DataJobStatus.SUCCESS.name());
+        // 当前状态枚举没有 PARTIAL；只要存在写入失败就必须标记 FAILED，
+        // 避免作业中心把“0 成功、全部失败”展示成成功。
+        job.setStatus(failed == 0 ? DataJobStatus.SUCCESS.name() : DataJobStatus.FAILED.name());
         job.setSuccessCount(success);
         job.setFailedCount(failed);
+        job.setErrorMsg(failed == 0 ? null : "存在 " + failed + " 行写入失败，请查看逐行结果");
         job.setRowResults(JSON.toJSONString(results));
         job.setFinishTime(new Date());
         job.setUpdateBy(operatorName);
         dataJobMapper.update(job);
 
         // 审计：导入执行
-        recordAudit(tenantId, jobId, operatorId, operatorName, "IMPORT",
+        recordAudit(tenantId, jobId, operatorId, operatorName, "IMPORT_" + importType.name(),
                 "{\"total\":" + rows.size() + ",\"success\":" + success + ",\"failed\":" + failed + "}");
 
-        log.info("Import confirmed: tenantId={}, jobId={}, success={}, failed={}, operator={}",
-                tenantId, jobId, success, failed, operatorName);
+        log.info("Import confirmed: tenantId={}, jobId={}, importType={}, success={}, failed={}, operator={}",
+                tenantId, jobId, importType, success, failed, operatorName);
         return job;
     }
 
@@ -493,6 +506,137 @@ public class DataJobServiceImpl implements DataJobService
         permissionService.check(ctx);
     }
 
+    private List<ImportRowResult> validateImportRows(String tenantId, DataImportType importType, List<?> rows)
+    {
+        List<ImportRowResult> results = new ArrayList<>();
+        if (importType == DataImportType.CUSTOMER)
+        {
+            Set<String> seenNameKeys = new HashSet<>();
+            int rowNum = 0;
+            for (ImportCustomerRow row : castRows(rows, ImportCustomerRow.class))
+            {
+                results.add(validateImportRow(tenantId, row, ++rowNum, seenNameKeys));
+            }
+            return results;
+        }
+
+        Map<String, CrmCustomer> customers = loadCustomerMap(tenantId);
+        Set<String> seenSourceIds = new HashSet<>();
+        int rowNum = 0;
+        if (importType == DataImportType.CONTACT)
+        {
+            for (ImportContactRow row : castRows(rows, ImportContactRow.class))
+            {
+                results.add(validateContactImportRow(row, ++rowNum, customers, seenSourceIds));
+            }
+        }
+        else
+        {
+            for (ImportFollowUpRow row : castRows(rows, ImportFollowUpRow.class))
+            {
+                results.add(validateFollowUpImportRow(row, ++rowNum, customers, seenSourceIds));
+            }
+        }
+        return results;
+    }
+
+    private ImportRowResult validateContactImportRow(ImportContactRow row, int rowNum,
+                                                       Map<String, CrmCustomer> customers,
+                                                       Set<String> seenSourceIds)
+    {
+        List<String> errors = new ArrayList<>();
+        String sourceDataId = trimToNull(row.getSourceDataId());
+        String customerName = trimToNull(row.getCustomerName());
+        String contactName = trimToNull(row.getName());
+        if (sourceDataId == null)
+        {
+            errors.add("数据id不能为空");
+        }
+        else if (!seenSourceIds.add(sourceDataId))
+        {
+            errors.add("文件内数据id重复");
+        }
+        if (customerName == null)
+        {
+            errors.add("客户名称不能为空");
+        }
+        if (contactName == null)
+        {
+            errors.add("联系人姓名不能为空");
+        }
+        CrmCustomer customer = customerName == null ? null : customers.get(normalizeNameKey(customerName));
+        if (customerName != null && customer == null)
+        {
+            errors.add("未找到关联客户：" + customerName);
+        }
+        validateSourceDates(row.getSourceCreateTime(), row.getSourceUpdateTime(), errors);
+
+        String label = customerName == null ? contactName : customerName + " / " + contactName;
+        ImportRowResult result = new ImportRowResult(rowNum, label, errors.isEmpty(),
+                errors.isEmpty() ? (trimToNull(row.getPhone()) == null
+                        ? "预检通过（手机号为空）" : "预检通过") : String.join("；", errors));
+        if (customer != null)
+        {
+            result.setCustomerId(customer.getCustomerId());
+        }
+        return result;
+    }
+
+    private ImportRowResult validateFollowUpImportRow(ImportFollowUpRow row, int rowNum,
+                                                        Map<String, CrmCustomer> customers,
+                                                        Set<String> seenSourceIds)
+    {
+        List<String> errors = new ArrayList<>();
+        String sourceDataId = trimToNull(row.getSourceDataId());
+        String customerName = trimToNull(row.getCustomerName());
+        if (sourceDataId == null)
+        {
+            errors.add("数据id不能为空");
+        }
+        else if (!seenSourceIds.add(sourceDataId))
+        {
+            errors.add("文件内数据id重复");
+        }
+        if (customerName == null)
+        {
+            errors.add("客户名称不能为空");
+        }
+        if (trimToNull(row.getContent()) == null)
+        {
+            errors.add("跟进内容不能为空");
+        }
+        CrmCustomer customer = customerName == null ? null : customers.get(normalizeNameKey(customerName));
+        if (customerName != null && customer == null)
+        {
+            errors.add("未找到关联客户：" + customerName);
+        }
+        validateSourceDates(row.getSourceCreateTime(), row.getSourceUpdateTime(), errors);
+
+        String message = errors.isEmpty() ? "预检通过" : String.join("；", errors);
+        if (errors.isEmpty() && trimToNull(row.getSourceAttachmentRefs()) != null)
+        {
+            message = "预检通过；原附件引用仅留档，本次不迁移附件文件";
+        }
+        ImportRowResult result = new ImportRowResult(rowNum, customerName, errors.isEmpty(), message);
+        if (customer != null)
+        {
+            result.setCustomerId(customer.getCustomerId());
+        }
+        return result;
+    }
+
+    private void validateSourceDates(String createTime, String updateTime, List<String> errors)
+    {
+        if (trimToNull(createTime) != null && parseDate(createTime) == null)
+        {
+            errors.add("创建时间格式错误");
+        }
+        if (trimToNull(updateTime) != null && parseDate(updateTime) == null)
+        {
+            errors.add("更新时间格式错误");
+        }
+    }
+
     /**
      * 预检单行导入数据
      */
@@ -500,6 +644,7 @@ public class DataJobServiceImpl implements DataJobService
                                               Set<String> seenNameKeys)
     {
         List<String> errors = new ArrayList<>();
+        String successMessage = "预检通过";
 
         String name = row.getName() == null ? "" : row.getName().trim();
         if (name.isEmpty())
@@ -518,26 +663,26 @@ public class DataJobServiceImpl implements DataJobService
                 seenNameKeys.add(nameKey);
                 if (customerMapper.selectByActiveNameKey(tenantId, nameKey) != null)
                 {
-                    errors.add("客户名称已存在（重名）");
+                    successMessage = "预检通过，将补充已有客户的导入资料";
                 }
             }
         }
 
-        Date nextFollowUpAt = parseDate(row.getNextFollowUpAt());
-        if (nextFollowUpAt == null)
+        String nextFollowUpText = trimToNull(row.getNextFollowUpAt());
+        if (nextFollowUpText != null && parseDate(nextFollowUpText) == null)
         {
-            errors.add("下次跟进时间为空或格式错误（支持 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss）");
+            errors.add("下次跟进时间格式错误（支持 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss）");
         }
 
-        if (row.getImportance() != null && !row.getImportance().trim().isEmpty()
-                && !IMPORTANCE_VALUES.contains(row.getImportance().trim()))
+        String importance = normalizeImportance(row.getImportance());
+        if (importance != null && !IMPORTANCE_VALUES.contains(importance))
         {
             errors.add("重要程度仅支持：一般/重要/非常重要");
         }
 
         if (errors.isEmpty())
         {
-            return new ImportRowResult(rowNum, name, true, "预检通过");
+            return new ImportRowResult(rowNum, name, true, successMessage);
         }
         return new ImportRowResult(rowNum, name, false, String.join("；", errors));
     }
@@ -549,24 +694,320 @@ public class DataJobServiceImpl implements DataJobService
     {
         CrmCustomer customer = new CrmCustomer();
         customer.setName(row.getName().trim());
-        customer.setAddressProvince(trimToNull(row.getAddressProvince()));
-        customer.setAddressCity(trimToNull(row.getAddressCity()));
+        // 历史钉钉表只有一个“地址”字段，而客户表的省、市、详细地址为 NOT NULL。
+        // 未知的结构化地址保持为空字符串，原始地址完整保存在详细地址中。
+        customer.setAddressProvince(emptyIfNull(trimToNull(row.getAddressProvince())));
+        customer.setAddressCity(emptyIfNull(trimToNull(row.getAddressCity())));
         customer.setAddressDistrict(trimToNull(row.getAddressDistrict()));
-        customer.setAddressDetail(trimToNull(row.getAddressDetail()));
-        customer.setImportance(trimToNull(row.getImportance()));
-        customer.setSource(trimToNull(row.getSource()));
-        customer.setIndustry(trimToNull(row.getIndustry()));
+        customer.setAddressDetail(emptyIfNull(firstNonBlank(row.getAddressDetail(), row.getLegacyAddress())));
+        customer.setTags(normalizeTags(row.getTags()));
+        customer.setFollowUpIntensity(firstNonBlank(row.getFollowUpIntensity(), row.getLegacyLevel()));
+        customer.setSourceFollowUpStatus(trimToNull(row.getSourceFollowUpStatus()));
+        customer.setCustomerGroup(trimToNull(row.getCustomerGroup()));
+        customer.setSourceCustomerStatus(trimToNull(row.getSourceCustomerStatus()));
+        customer.setLifecycleStage(normalizeLifecycleStage(row.getSourceFollowUpStatus()));
+        String importance = normalizeImportance(row.getImportance());
+        customer.setImportance(importance == null ? "一般" : importance);
+        customer.setSource(emptyIfNull(trimToNull(row.getSource())));
+        customer.setReferredCustomerName(trimToNull(row.getReferredCustomerName()));
+        customer.setSourceOther(trimToNull(row.getSourceOther()));
+        customer.setIndustry(emptyIfNull(firstNonBlank(row.getIndustry(), row.getLegacyIndustry())));
+        customer.setIndustryOther(trimToNull(row.getIndustryOther()));
+        customer.setSourceCreatorName(trimToNull(row.getSourceCreatorName()));
+        customer.setSourceOwnerName(trimToNull(row.getSourceOwnerName()));
+        customer.setSourceCollaboratorNames(trimToNull(row.getSourceCollaboratorNames()));
+        customer.setCreateTime(row.getSourceCreateTime());
+        customer.setUpdateTime(row.getSourceUpdateTime());
+        customer.setDroppedProtectionAt(row.getDroppedProtectionAt());
         customer.setRemark(trimToNull(row.getRemark()));
-        customer.setNextFollowUpAt(parseDate(row.getNextFollowUpAt()));
+        Date nextFollowUpAt = parseDate(row.getNextFollowUpAt());
+        // 历史客户表没有“下次跟进时间”列。使用导入时刻保证正常客户约束，
+        // 并让这些待重新规划的客户立即出现在跟进列表中，而不是虚构未来计划。
+        customer.setNextFollowUpAt(nextFollowUpAt == null ? new Date() : nextFollowUpAt);
         customer.setPrimaryOwnerId(operatorId);
         customer.setPrimaryOwnerName(operatorName);
         return customer;
     }
 
+    private int[] confirmCustomerRows(String tenantId, List<ImportCustomerRow> rows,
+                                      List<ImportRowResult> results,
+                                      Long operatorId, String operatorName)
+    {
+        int success = 0;
+        int failed = 0;
+        for (int i = 0; i < rows.size(); i++)
+        {
+            ImportRowResult result = results.get(i);
+            if (!Boolean.TRUE.equals(result.getValid()))
+            {
+                result.setResult("SKIPPED");
+                continue;
+            }
+            try
+            {
+                CrmCustomer customer = buildCustomerFromRow(rows.get(i), operatorId, operatorName);
+                CrmCustomer existing = customerMapper.selectByActiveNameKey(
+                        tenantId, normalizeNameKey(customer.getName()));
+                CrmCustomer saved;
+                if (existing == null)
+                {
+                    saved = customerService.create(customer);
+                }
+                else
+                {
+                    int updated = customerMapper.updateImportedMetadata(
+                            tenantId, existing.getCustomerId(), customer);
+                    if (updated == 0)
+                    {
+                        throw new IllegalStateException("已有客户资料回填失败");
+                    }
+                    saved = customerMapper.selectByCustomerId(tenantId, existing.getCustomerId());
+                }
+                result.setResult("SUCCESS");
+                result.setCustomerId(saved.getCustomerId());
+                success++;
+            }
+            catch (Exception e)
+            {
+                result.setResult("FAILED");
+                result.setMessage(e.getMessage());
+                failed++;
+            }
+        }
+        return new int[]{success, failed};
+    }
+
+    private int[] confirmContactRows(String tenantId, List<ImportContactRow> rows,
+                                     List<ImportRowResult> results, String operatorName)
+    {
+        Map<String, CrmCustomer> customers = loadCustomerMap(tenantId);
+        int success = 0;
+        int failed = 0;
+        for (int i = 0; i < rows.size(); i++)
+        {
+            ImportRowResult result = results.get(i);
+            if (!Boolean.TRUE.equals(result.getValid()))
+            {
+                result.setResult("SKIPPED");
+                continue;
+            }
+            ImportContactRow row = rows.get(i);
+            try
+            {
+                CrmCustomer customer = customers.get(normalizeNameKey(row.getCustomerName()));
+                if (customer == null)
+                {
+                    throw new IllegalArgumentException("关联客户不存在：" + row.getCustomerName());
+                }
+                CrmContact existing = contactMapper.selectBySourceDataId(tenantId, row.getSourceDataId());
+                if (existing != null)
+                {
+                    result.setResult("SUCCESS");
+                    result.setCustomerId(existing.getCustomerId());
+                    result.setMessage("源记录已存在，已跳过重复写入");
+                    success++;
+                    continue;
+                }
+
+                CrmContact contact = buildContactFromRow(row, tenantId, customer.getCustomerId(), operatorName);
+                if (contact.getPhoneNumber() != null)
+                {
+                    existing = contactMapper.selectByCustomerAndPhone(
+                            tenantId, customer.getCustomerId(), contact.getPhoneNumber());
+                }
+                if (existing != null)
+                {
+                    contactMapper.bindSourceDataId(
+                            tenantId, existing.getContactId(), row.getSourceDataId(), operatorName);
+                    result.setMessage("已关联该客户下相同手机号的联系人");
+                }
+                else
+                {
+                    contactMapper.insert(contact);
+                }
+                result.setResult("SUCCESS");
+                result.setCustomerId(customer.getCustomerId());
+                success++;
+            }
+            catch (Exception e)
+            {
+                result.setResult("FAILED");
+                result.setMessage(e.getMessage());
+                failed++;
+            }
+        }
+        return new int[]{success, failed};
+    }
+
+    private CrmContact buildContactFromRow(ImportContactRow row, String tenantId,
+                                           Long customerId, String operatorName)
+    {
+        String phone = normalizeImportedPhone(row.getPhone());
+        String creatorName = firstNonBlank(row.getSourceCreatorName(), operatorName);
+        Date createTime = parseDate(row.getSourceCreateTime());
+        Date updateTime = parseDate(row.getSourceUpdateTime());
+
+        CrmContact contact = new CrmContact();
+        contact.setContactId(idGenerator.nextId());
+        contact.setSourceDataId(trimToNull(row.getSourceDataId()));
+        contact.setTenantId(tenantId);
+        contact.setCustomerId(customerId);
+        contact.setName(row.getName().trim());
+        contact.setPhoneType(phone == null ? "其他" : "手机");
+        contact.setCountryCode("+86");
+        contact.setPhoneNumber(phone);
+        contact.setPhoneMasked(maskPhone(phone));
+        contact.setEmail(trimToNull(row.getEmail()));
+        contact.setEmailMasked(maskEmail(row.getEmail()));
+        contact.setWechatId(trimToNull(row.getWechatId()));
+        contact.setWechatMasked(maskWechat(row.getWechatId()));
+        contact.setResponsibility(trimToNull(row.getResponsibility()));
+        contact.setTitle(trimToNull(row.getTitle()));
+        contact.setIsDecisionMaker(isYes(row.getDecisionMaker()));
+        contact.setRemark(trimToNull(row.getRemark()));
+        contact.setStatus("有效");
+        contact.setSourceOwnerNames(trimToNull(row.getSourceOwnerNames()));
+        contact.setSourceCollaboratorNames(trimToNull(row.getSourceCollaboratorNames()));
+        contact.setVersion(0);
+        contact.setDelFlag("0");
+        contact.setCreateBy(creatorName);
+        contact.setCreateTime(createTime);
+        contact.setUpdateBy(creatorName);
+        contact.setUpdateTime(updateTime == null ? createTime : updateTime);
+        return contact;
+    }
+
+    private int[] confirmFollowUpRows(String tenantId, List<ImportFollowUpRow> rows,
+                                      List<ImportRowResult> results,
+                                      Long operatorId, String operatorName)
+    {
+        Map<String, CrmCustomer> customers = loadCustomerMap(tenantId);
+        int success = 0;
+        int failed = 0;
+        for (int i = 0; i < rows.size(); i++)
+        {
+            ImportRowResult result = results.get(i);
+            if (!Boolean.TRUE.equals(result.getValid()))
+            {
+                result.setResult("SKIPPED");
+                continue;
+            }
+            ImportFollowUpRow row = rows.get(i);
+            try
+            {
+                CrmCustomer customer = customers.get(normalizeNameKey(row.getCustomerName()));
+                if (customer == null)
+                {
+                    throw new IllegalArgumentException("关联客户不存在：" + row.getCustomerName());
+                }
+                CrmFollowUp existing = followUpMapper.selectBySourceDataId(tenantId, row.getSourceDataId());
+                if (existing != null)
+                {
+                    result.setResult("SUCCESS");
+                    result.setCustomerId(existing.getCustomerId());
+                    result.setMessage("源记录已存在，已跳过重复写入");
+                    success++;
+                    continue;
+                }
+
+                CrmFollowUp followUp = buildFollowUpFromRow(
+                        row, tenantId, customer.getCustomerId(), operatorId, operatorName);
+                followUpMapper.insert(followUp);
+                linkImportedFollowUpContacts(tenantId, customer.getCustomerId(),
+                        followUp.getFollowUpId(), row.getContactNames());
+                result.setResult("SUCCESS");
+                result.setCustomerId(customer.getCustomerId());
+                success++;
+            }
+            catch (Exception e)
+            {
+                result.setResult("FAILED");
+                result.setMessage(e.getMessage());
+                failed++;
+            }
+        }
+        return new int[]{success, failed};
+    }
+
+    private CrmFollowUp buildFollowUpFromRow(ImportFollowUpRow row, String tenantId,
+                                             Long customerId, Long operatorId, String operatorName)
+    {
+        Date followUpAt = parseDate(row.getSourceCreateTime());
+        Date updateTime = parseDate(row.getSourceUpdateTime());
+        if (followUpAt == null)
+        {
+            followUpAt = updateTime == null ? new Date() : updateTime;
+        }
+        String creatorName = firstNonBlank(row.getSourceCreatorName(), operatorName);
+
+        CrmFollowUp followUp = new CrmFollowUp();
+        followUp.setFollowUpId(idGenerator.nextId());
+        followUp.setSourceDataId(trimToNull(row.getSourceDataId()));
+        followUp.setTenantId(tenantId);
+        followUp.setCustomerId(customerId);
+        followUp.setMethod(normalizeFollowUpMethod(row.getMethod()));
+        followUp.setFollowUpAt(followUpAt);
+        followUp.setContent(row.getContent().trim());
+        followUp.setHasNewSigningProject(isYes(row.getHasNewSigningProject()));
+        followUp.setIsCorrected(false);
+        followUp.setIsVoided(false);
+        followUp.setCreatedBy(operatorId);
+        followUp.setCreatedByName(creatorName);
+        followUp.setImmutableAt(updateTime == null ? followUpAt : updateTime);
+        followUp.setSourceContactNames(trimToNull(row.getContactNames()));
+        followUp.setSourceAttachmentRefs(trimToNull(row.getSourceAttachmentRefs()));
+        followUp.setSourceIsKeyCustomer(isYes(row.getSourceIsKeyCustomer()));
+        followUp.setSourceCreatorDept(trimToNull(row.getSourceCreatorDept()));
+        followUp.setSourceApprovalTitle(trimToNull(row.getSourceApprovalTitle()));
+        followUp.setSourceOwnerNames(trimToNull(row.getSourceOwnerNames()));
+        followUp.setSourceCollaboratorNames(trimToNull(row.getSourceCollaboratorNames()));
+        followUp.setVersion(0);
+        followUp.setDelFlag("0");
+        followUp.setCreateBy(creatorName);
+        followUp.setCreateTime(followUpAt);
+        followUp.setUpdateBy(creatorName);
+        followUp.setUpdateTime(updateTime == null ? followUpAt : updateTime);
+        return followUp;
+    }
+
+    private void linkImportedFollowUpContacts(String tenantId, Long customerId,
+                                              Long followUpId, String contactNames)
+    {
+        String value = trimToNull(contactNames);
+        if (value == null)
+        {
+            return;
+        }
+        List<CrmFollowUpContact> links = new ArrayList<>();
+        Set<Long> contactIds = new HashSet<>();
+        for (String item : value.split("、"))
+        {
+            String name = trimToNull(item);
+            if (name == null)
+            {
+                continue;
+            }
+            CrmContact contact = contactMapper.selectByCustomerAndName(tenantId, customerId, name);
+            if (contact != null && contactIds.add(contact.getContactId()))
+            {
+                CrmFollowUpContact link = new CrmFollowUpContact();
+                link.setId(idGenerator.nextId());
+                link.setTenantId(tenantId);
+                link.setFollowUpId(followUpId);
+                link.setContactId(contact.getContactId());
+                links.add(link);
+            }
+        }
+        if (!links.isEmpty())
+        {
+            followUpContactMapper.batchInsert(links);
+        }
+    }
+
     /**
      * 读取导入源文件数据行
      */
-    private List<ImportCustomerRow> readSourceRows(String tenantId, CrmDataJob job)
+    private List<?> readSourceRows(String tenantId, CrmDataJob job, DataImportType importType)
     {
         File file = resolveStorageFile(job.getStorageKey());
         if (!file.exists())
@@ -575,13 +1016,145 @@ public class DataJobServiceImpl implements DataJobService
         }
         try (InputStream is = new FileInputStream(file))
         {
-            List<ImportCustomerRow> rows = new ExcelUtil<>(ImportCustomerRow.class).importExcel(is);
-            return rows == null ? new ArrayList<>() : rows;
+            return readImportRows(is, importType);
         }
         catch (Exception e)
         {
             throw new IllegalStateException("导入源文件读取失败：" + e.getMessage());
         }
+    }
+
+    private List<?> readImportRows(InputStream input, DataImportType importType) throws Exception
+    {
+        switch (importType)
+        {
+            case CONTACT:
+                return readContactRows(input);
+            case FOLLOW_UP:
+                return readFollowUpRows(input);
+            case CUSTOMER:
+            default:
+                List<ImportCustomerRow> rows = new ExcelUtil<>(ImportCustomerRow.class).importExcel(input);
+                return rows == null ? new ArrayList<>() : rows;
+        }
+    }
+
+    private List<ImportContactRow> readContactRows(InputStream input) throws Exception
+    {
+        try (Workbook workbook = WorkbookFactory.create(input))
+        {
+            Sheet sheet = requireLegacySheet(workbook, "联系人");
+            DataFormatter formatter = new DataFormatter(Locale.CHINA);
+            List<ImportContactRow> rows = new ArrayList<>();
+            for (int rowIndex = 2; rowIndex <= sheet.getLastRowNum(); rowIndex++)
+            {
+                Row source = sheet.getRow(rowIndex);
+                if (source == null || isBlankRow(source, formatter, 1, 4))
+                {
+                    continue;
+                }
+                ImportContactRow row = new ImportContactRow();
+                row.setSourceDataId(cellText(source, 1, formatter));
+                row.setCustomerName(firstNonBlank(cellText(source, 3, formatter), cellText(source, 2, formatter)));
+                row.setName(cellText(source, 4, formatter));
+                row.setTitle(cellText(source, 5, formatter));
+                row.setResponsibility(cellText(source, 6, formatter));
+                row.setDecisionMaker(cellText(source, 7, formatter));
+                row.setPhone(cellText(source, 8, formatter));
+                row.setWechatId(cellText(source, 9, formatter));
+                row.setEmail(cellText(source, 10, formatter));
+                row.setRemark(cellText(source, 11, formatter));
+                row.setSourceCreateTime(cellText(source, 12, formatter));
+                row.setSourceCreatorName(cellText(source, 13, formatter));
+                row.setSourceUpdateTime(cellText(source, 16, formatter));
+                row.setSourceOwnerNames(cellText(source, 17, formatter));
+                row.setSourceCollaboratorNames(cellText(source, 18, formatter));
+                rows.add(row);
+            }
+            return rows;
+        }
+    }
+
+    private List<ImportFollowUpRow> readFollowUpRows(InputStream input) throws Exception
+    {
+        try (Workbook workbook = WorkbookFactory.create(input))
+        {
+            Sheet sheet = requireLegacySheet(workbook, "跟进记录");
+            DataFormatter formatter = new DataFormatter(Locale.CHINA);
+            List<ImportFollowUpRow> rows = new ArrayList<>();
+            for (int rowIndex = 2; rowIndex <= sheet.getLastRowNum(); rowIndex++)
+            {
+                Row source = sheet.getRow(rowIndex);
+                if (source == null || isBlankRow(source, formatter, 1, 17))
+                {
+                    continue;
+                }
+                ImportFollowUpRow row = new ImportFollowUpRow();
+                row.setSourceDataId(cellText(source, 1, formatter));
+                row.setCustomerName(firstNonBlank(cellText(source, 3, formatter), cellText(source, 2, formatter)));
+                row.setHasNewSigningProject(cellText(source, 4, formatter));
+                row.setContactNames(joinDistinct(
+                        firstNonBlank(cellText(source, 6, formatter), cellText(source, 5, formatter)),
+                        firstNonBlank(cellText(source, 9, formatter), cellText(source, 8, formatter)),
+                        firstNonBlank(cellText(source, 12, formatter), cellText(source, 11, formatter))));
+                row.setMethod(cellText(source, 14, formatter));
+                row.setSourceAttachmentRefs(cellText(source, 15, formatter));
+                row.setSourceIsKeyCustomer(cellText(source, 16, formatter));
+                row.setContent(cellText(source, 17, formatter));
+                row.setSourceCreateTime(cellText(source, 18, formatter));
+                row.setSourceCreatorName(cellText(source, 19, formatter));
+                row.setSourceCreatorDept(cellText(source, 20, formatter));
+                row.setSourceApprovalTitle(cellText(source, 21, formatter));
+                row.setSourceUpdateTime(cellText(source, 22, formatter));
+                row.setSourceOwnerNames(cellText(source, 23, formatter));
+                row.setSourceCollaboratorNames(cellText(source, 24, formatter));
+                rows.add(row);
+            }
+            return rows;
+        }
+    }
+
+    private Sheet requireLegacySheet(Workbook workbook, String expectedType)
+    {
+        if (workbook.getNumberOfSheets() == 0)
+        {
+            throw new IllegalArgumentException("Excel 中没有工作表");
+        }
+        Sheet sheet = workbook.getSheetAt(0);
+        DataFormatter formatter = new DataFormatter(Locale.CHINA);
+        String firstHeader = cellText(sheet.getRow(0), 1, formatter);
+        String secondHeader = cellText(sheet.getRow(1), 1, formatter);
+        if (!"数据id".equals(firstHeader) || !"数据id".equals(secondHeader))
+        {
+            throw new IllegalArgumentException("不是受支持的 CRM" + expectedType + "双层表头文件");
+        }
+        return sheet;
+    }
+
+    private boolean isBlankRow(Row row, DataFormatter formatter, int... indexes)
+    {
+        for (int index : indexes)
+        {
+            if (trimToNull(cellText(row, index, formatter)) != null)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String cellText(Row row, int index, DataFormatter formatter)
+    {
+        if (row == null)
+        {
+            return null;
+        }
+        Cell cell = row.getCell(index);
+        if (cell == null)
+        {
+            return null;
+        }
+        return trimToNull(formatter.formatCellValue(cell));
     }
 
     /**
@@ -593,8 +1166,16 @@ public class DataJobServiceImpl implements DataJobService
         File target = resolveStorageFile(relativeKey);
         try
         {
-            Files.createDirectories(Paths.get(properties.getStoragePath(), tenantId));
-            file.transferTo(target);
+            Files.createDirectories(target.toPath().getParent());
+            try (InputStream input = file.getInputStream())
+            {
+                /*
+                 * MultipartFile#transferTo 对相对路径的解释由 Servlet 容器决定。
+                 * Tomcat 会把它解析到自己的临时工作目录，和上面创建的业务目录不一致。
+                 * 显式流复制到绝对规范路径，确保本地、容器和测试环境行为一致。
+                 */
+                Files.copy(input, target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
         }
         catch (Exception e)
         {
@@ -612,7 +1193,7 @@ public class DataJobServiceImpl implements DataJobService
     {
         String relativeKey = tenantId + "/" + jobId + ".xlsx";
         File target = resolveStorageFile(relativeKey);
-        Files.createDirectories(Paths.get(properties.getStoragePath(), tenantId));
+        Files.createDirectories(target.toPath().getParent());
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         try (Workbook wb = new XSSFWorkbook(); FileOutputStream fos = new FileOutputStream(target))
@@ -731,7 +1312,13 @@ public class DataJobServiceImpl implements DataJobService
 
     private File resolveStorageFile(String relativeKey)
     {
-        return Paths.get(properties.getStoragePath(), relativeKey).toFile();
+        Path storageRoot = Paths.get(properties.getStoragePath()).toAbsolutePath().normalize();
+        Path target = storageRoot.resolve(relativeKey).normalize();
+        if (!target.startsWith(storageRoot))
+        {
+            throw new IllegalArgumentException("非法的数据作业文件路径");
+        }
+        return target.toFile();
     }
 
     private String buildExportFileName(String operatorName)
@@ -757,6 +1344,74 @@ public class DataJobServiceImpl implements DataJobService
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String emptyIfNull(String value)
+    {
+        return value == null ? "" : value;
+    }
+
+    private String firstNonBlank(String primary, String fallback)
+    {
+        String value = trimToNull(primary);
+        return value == null ? trimToNull(fallback) : value;
+    }
+
+    private String normalizeImportance(String importance)
+    {
+        String value = trimToNull(importance);
+        if ("很重要".equals(value))
+        {
+            return "非常重要";
+        }
+        return value;
+    }
+
+    private String normalizeLifecycleStage(String sourceStatus)
+    {
+        String value = trimToNull(sourceStatus);
+        if ("成交".equals(value))
+        {
+            return LifecycleStage.CLOSED_WON.getValue();
+        }
+        for (LifecycleStage stage : LifecycleStage.values())
+        {
+            if (stage.getValue().equals(value))
+            {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String normalizeTags(String tags)
+    {
+        String value = trimToNull(tags);
+        if (value == null)
+        {
+            return null;
+        }
+        if (value.startsWith("[") && value.endsWith("]"))
+        {
+            try
+            {
+                return JSON.toJSONString(JSON.parseArray(value));
+            }
+            catch (Exception ignored)
+            {
+                // 非法 JSON 按普通分隔文本处理
+            }
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String item : value.split("[,，;；、]"))
+        {
+            String tag = trimToNull(item);
+            if (tag != null)
+            {
+                normalized.add(tag);
+            }
+        }
+        return normalized.isEmpty() ? null : JSON.toJSONString(normalized);
     }
 
     /**
@@ -788,13 +1443,126 @@ public class DataJobServiceImpl implements DataJobService
         return null;
     }
 
+    private Map<String, CrmCustomer> loadCustomerMap(String tenantId)
+    {
+        Map<String, CrmCustomer> customers = new HashMap<>();
+        List<CrmCustomer> rows = customerMapper.selectAll(tenantId);
+        if (rows != null)
+        {
+            for (CrmCustomer customer : rows)
+            {
+                customers.put(normalizeNameKey(customer.getName()), customer);
+            }
+        }
+        return customers;
+    }
+
+    private <T> List<T> castRows(List<?> rows, Class<T> type)
+    {
+        List<T> cast = new ArrayList<>(rows.size());
+        for (Object row : rows)
+        {
+            cast.add(type.cast(row));
+        }
+        return cast;
+    }
+
+    private String normalizeImportedPhone(String phone)
+    {
+        String value = trimToNull(phone);
+        if (value == null)
+        {
+            return null;
+        }
+        String digits = value.replaceAll("[^0-9]", "");
+        return digits.isEmpty() ? null : digits;
+    }
+
+    private String maskPhone(String phone)
+    {
+        String value = trimToNull(phone);
+        if (value == null || value.length() <= 7)
+        {
+            return value;
+        }
+        return value.substring(0, 3) + "****" + value.substring(value.length() - 4);
+    }
+
+    private String maskEmail(String email)
+    {
+        String value = trimToNull(email);
+        if (value == null || !value.contains("@"))
+        {
+            return value;
+        }
+        int atIndex = value.indexOf('@');
+        return atIndex <= 1 ? value : value.charAt(0) + "***" + value.substring(atIndex);
+    }
+
+    private String maskWechat(String wechatId)
+    {
+        String value = trimToNull(wechatId);
+        if (value == null || value.length() <= 4)
+        {
+            return value;
+        }
+        return value.substring(0, 2) + "***" + value.substring(value.length() - 2);
+    }
+
+    private boolean isYes(String value)
+    {
+        String normalized = trimToNull(value);
+        return "是".equals(normalized) || "true".equalsIgnoreCase(normalized)
+                || "1".equals(normalized) || "yes".equalsIgnoreCase(normalized);
+    }
+
+    private String normalizeFollowUpMethod(String value)
+    {
+        String method = trimToNull(value);
+        if (method == null)
+        {
+            return "其他";
+        }
+        if (method.startsWith("电话"))
+        {
+            return "电话";
+        }
+        if (method.startsWith("微信"))
+        {
+            return "微信";
+        }
+        if (method.startsWith("面谈"))
+        {
+            return "面谈";
+        }
+        if (method.startsWith("邮件"))
+        {
+            return "邮件";
+        }
+        return "其他";
+    }
+
+    private String joinDistinct(String... values)
+    {
+        Set<String> distinct = new LinkedHashSet<>();
+        for (String value : values)
+        {
+            String normalized = trimToNull(value);
+            if (normalized != null)
+            {
+                distinct.add(normalized);
+            }
+        }
+        return distinct.isEmpty() ? null : String.join("、", distinct);
+    }
+
     private void recordAudit(String tenantId, Long jobId, Long operatorId, String operatorName,
                              String action, String afterData)
     {
         CrmAuditEvent event = new CrmAuditEvent();
         event.setTenantId(tenantId);
         event.setEventType("DATA_JOB");
-        event.setEntityType("IMPORT".equals(action) || "EXPORT".equals(action) ? action : "EXPORT");
+        event.setEntityType(action.startsWith("IMPORT") ? "IMPORT" : "EXPORT");
         event.setEntityId(String.valueOf(jobId));
         event.setOperatorId(operatorId);
         event.setOperatorName(operatorName);

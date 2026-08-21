@@ -3,9 +3,14 @@ import { request } from '@umijs/max';
 // ==================== 数据作业（导入导出） ====================
 
 /** 上传导入文件并预检 */
-export async function uploadImport(file: File, options?: Record<string, any>) {
+export async function uploadImport(
+  file: File,
+  importType: API.Crm.DataImportType = 'CUSTOMER',
+  options?: Record<string, any>,
+) {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('importType', importType);
   return request<API.Crm.R<API.Crm.CrmDataJob>>('/api/crm/v1/data-jobs/imports', {
     method: 'POST',
     data: formData,
@@ -14,7 +19,7 @@ export async function uploadImport(file: File, options?: Record<string, any>) {
 }
 
 /** 确认执行导入 */
-export async function confirmImport(jobId: number, options?: Record<string, any>) {
+export async function confirmImport(jobId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.CrmDataJob>>(
     `/api/crm/v1/data-jobs/imports/${jobId}/confirm`,
     {
@@ -47,7 +52,7 @@ export async function listDataJobs(jobType?: API.Crm.DataJobType, options?: Reco
 }
 
 /** 查询作业详情 */
-export async function getDataJob(jobId: number, options?: Record<string, any>) {
+export async function getDataJob(jobId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.CrmDataJob>>(`/api/crm/v1/data-jobs/${jobId}`, {
     method: 'GET',
     ...(options || {}),
@@ -55,6 +60,6 @@ export async function getDataJob(jobId: number, options?: Record<string, any>) {
 }
 
 /** 导出文件下载地址（用于 window.open / a 标签） */
-export function getExportDownloadUrl(jobId: number) {
+export function getExportDownloadUrl(jobId: API.Crm.Id) {
   return `/api/crm/v1/data-jobs/exports/${jobId}/download`;
 }

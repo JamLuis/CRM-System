@@ -6,6 +6,7 @@
         <result property="jobId"          column="job_id"/>
         <result property="tenantId"       column="tenant_id"/>
         <result property="jobType"        column="job_type"/>
+        <result property="importType"     column="import_type"/>
         <result property="status"         column="status"/>
         <result property="fileName"       column="file_name"/>
         <result property="storageKey"     column="storage_key"/>
@@ -29,7 +30,7 @@
     </resultMap>
 
     <sql id="selectColumns">
-        job_id, tenant_id, job_type, status, file_name, storage_key, query_condition,
+        job_id, tenant_id, job_type, import_type, status, file_name, storage_key, query_condition,
         total_count, success_count, failed_count, row_results, expire_time,
         operator_id, operator_name, error_msg, start_time, finish_time,
         version, del_flag, create_by, create_time, update_by, update_time
@@ -61,12 +62,12 @@
 
     <insert id="insert" parameterType="com.ruoyi.crm.datajob.domain.CrmDataJob">
         INSERT INTO crm_data_job (
-            job_id, tenant_id, job_type, status, file_name, storage_key, query_condition,
+            job_id, tenant_id, job_type, import_type, status, file_name, storage_key, query_condition,
             total_count, success_count, failed_count, row_results, expire_time,
             operator_id, operator_name, error_msg, start_time, finish_time,
             version, del_flag, create_by, create_time, update_by, update_time
         ) VALUES (
-            #{jobId}, #{tenantId}, #{jobType}, #{status}, #{fileName}, #{storageKey}, #{queryCondition},
+            #{jobId}, #{tenantId}, #{jobType}, #{importType}, #{status}, #{fileName}, #{storageKey}, #{queryCondition},
             #{totalCount}, #{successCount}, #{failedCount}, #{rowResults}, #{expireTime},
             #{operatorId}, #{operatorName}, #{errorMsg}, #{startTime}, #{finishTime},
             #{version}, #{delFlag}, #{createBy}, NOW(), #{updateBy}, NOW()

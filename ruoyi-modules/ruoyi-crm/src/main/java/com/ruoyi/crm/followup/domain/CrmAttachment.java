@@ -47,6 +47,10 @@ public class CrmAttachment extends CrmBaseEntity
     private Date scanCompletedAt;
     /** 脱敏失败码 */
     private String scanErrorCode;
+    /** 临时上传地址，不持久化。 */
+    private String uploadUrl;
+    /** 临时下载地址，不持久化。 */
+    private String downloadUrl;
 
     public Long getAttachmentId()
     {
@@ -187,4 +191,9 @@ public class CrmAttachment extends CrmBaseEntity
     {
         this.scanErrorCode = scanErrorCode;
     }
+
+    public String getUploadUrl() { return uploadUrl; }
+    public void setUploadUrl(String uploadUrl) { this.uploadUrl = uploadUrl; }
+    public String getDownloadUrl() { return downloadUrl; }
+    public void setDownloadUrl(String downloadUrl) { this.downloadUrl = downloadUrl; }
 }

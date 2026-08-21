@@ -1,7 +1,7 @@
 import { request } from '@umijs/max';
 
 /** 计算单个客户跟进健康度，返回状态码 */
-export async function calculateFollowUpStatus(customerId: number, options?: Record<string, any>) {
+export async function calculateFollowUpStatus(customerId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<string>>(`/api/crm/v1/health/calculate/${customerId}`, {
     method: 'POST',
     ...(options || {}),

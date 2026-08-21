@@ -18,6 +18,10 @@ public interface CrmFollowUpMapper
     CrmFollowUp selectByFollowUpId(@Param("tenantId") String tenantId,
                                    @Param("followUpId") Long followUpId);
 
+    /** 按外部来源数据 ID 查询（幂等导入） */
+    CrmFollowUp selectBySourceDataId(@Param("tenantId") String tenantId,
+                                     @Param("sourceDataId") String sourceDataId);
+
     /**
      * 按客户查询有效跟进列表（排除已作废）
      */

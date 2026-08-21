@@ -15,6 +15,7 @@ class PermissionCodeTest
     @DisplayName("权限码格式正确：模块:资源:操作")
     void testPermissionCodeFormat()
     {
+        assertEquals("crm:access", PermissionCode.CRM_ACCESS.getCode());
         assertEquals("crm:customer:read", PermissionCode.CRM_CUSTOMER_READ.getCode());
         assertEquals("crm:customer:write", PermissionCode.CRM_CUSTOMER_WRITE.getCode());
         assertEquals("crm:customer:assign", PermissionCode.CRM_CUSTOMER_ASSIGN.getCode());
@@ -42,6 +43,7 @@ class PermissionCodeTest
     @DisplayName("fromString 正确解析已知权限码")
     void testFromStringKnown()
     {
+        assertEquals(PermissionCode.CRM_ACCESS, PermissionCode.fromString("crm:access"));
         assertEquals(PermissionCode.CRM_CUSTOMER_READ, PermissionCode.fromString("crm:customer:read"));
         assertEquals(PermissionCode.CRM_CUSTOMER_WRITE, PermissionCode.fromString("crm:customer:write"));
         assertEquals(PermissionCode.CRM_ADMIN_ALL, PermissionCode.fromString("crm:admin:*"));

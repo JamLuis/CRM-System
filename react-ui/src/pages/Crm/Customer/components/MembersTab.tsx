@@ -1,6 +1,3 @@
-import React, { useEffect, useState } from 'react';
-import { Button, Card, Checkbox, Form, Input, message, Modal, Popconfirm, Space, Table, Tabs, Tag } from 'antd';
-import { useAccess } from '@umijs/max';
 import {
   addCollaborator,
   getCustomerOwners,
@@ -8,11 +5,28 @@ import {
   removeCollaborator,
   transferOwner,
 } from '@/services/crm/customer';
-import { OWNER_CHANGE_TYPE_ENUM, OWNER_ROLE_TYPE_ENUM } from '../../constants';
+import { useAccess } from '@umijs/max';
+import {
+  Button,
+  Card,
+  Checkbox,
+  Form,
+  Input,
+  message,
+  Modal,
+  Popconfirm,
+  Space,
+  Table,
+  Tabs,
+  Tag,
+} from 'antd';
+import React, { useEffect, useState } from 'react';
+import { CRM_HORIZONTAL_FORM_PROPS } from '../../components/formLayout';
 import UserSelect from '../../components/UserSelect';
+import { OWNER_CHANGE_TYPE_ENUM, OWNER_ROLE_TYPE_ENUM } from '../../constants';
 
 export type MembersTabProps = {
-  customerId: number;
+  customerId: API.Crm.Id;
 };
 
 /** 客户成员管理 */
@@ -119,7 +133,10 @@ const MembersTab: React.FC<MembersTabProps> = ({ customerId }) => {
       title: '操作',
       render: (_: any, record: API.Crm.CustomerOwner) =>
         canAssign && record.roleType === 'COLLABORATOR' ? (
-          <Popconfirm title="确认移除该协同人？" onConfirm={() => handleRemoveCollaborator(record.id!)}>
+          <Popconfirm
+            title="确认移除该协同人？"
+            onConfirm={() => handleRemoveCollaborator(record.id!)}
+          >
             <a>移除</a>
           </Popconfirm>
         ) : null,
@@ -192,17 +209,25 @@ const MembersTab: React.FC<MembersTabProps> = ({ customerId }) => {
         onOk={handleTransfer}
         destroyOnClose
       >
-        <Form form={transferForm} layout="vertical">
+        <Form form={transferForm} {...CRM_HORIZONTAL_FORM_PROPS}>
           <Form.Item label="新负责人" required>
             <UserSelect
               value={transferTarget?.userId}
               onChange={(_, user) => setTransferTarget(user)}
             />
           </Form.Item>
-          <Form.Item name="keepPreviousAsCollaborator" valuePropName="checked" label="原负责人保留为协同人">
+          <Form.Item
+            name="keepPreviousAsCollaborator"
+            valuePropName="checked"
+            label="原负责人保留为协同人"
+          >
             <Checkbox />
           </Form.Item>
-          <Form.Item name="reason" label="移交原因" rules={[{ required: true, message: '请填写移交原因' }]}>
+          <Form.Item
+            name="reason"
+            label="移交原因"
+            rules={[{ required: true, message: '请填写移交原因' }]}
+          >
             <Input.TextArea rows={3} maxLength={255} />
           </Form.Item>
         </Form>
@@ -213,9 +238,17 @@ const MembersTab: React.FC<MembersTabProps> = ({ customerId }) => {
         open={collabVisible}
         onCancel={() => setCollabVisible(false)}
         onOk={handleAddCollaborator}
+        width={560}
         destroyOnClose
       >
-        <UserSelect value={collabTarget?.userId} onChange={(_, user) => setCollabTarget(user)} />
+        <Form {...CRM_HORIZONTAL_FORM_PROPS}>
+          <Form.Item label="协同人" required>
+            <UserSelect
+              value={collabTarget?.userId}
+              onChange={(_, user) => setCollabTarget(user)}
+            />
+          </Form.Item>
+        </Form>
       </Modal>
     </Card>
   );

@@ -13,6 +13,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import com.ruoyi.crm.outbox.service.OutboxService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Arrays;
 import java.util.Calendar;
@@ -31,6 +33,7 @@ class ReminderServiceImplTest
     private CrmReminderPlanMapper planMapper;
     private CrmReminderDeliveryMapper deliveryMapper;
     private IdGenerator idGenerator;
+    private OutboxService outboxService;
     private ReminderServiceImpl reminderService;
 
     @BeforeEach
@@ -39,6 +42,7 @@ class ReminderServiceImplTest
         planMapper = Mockito.mock(CrmReminderPlanMapper.class);
         deliveryMapper = Mockito.mock(CrmReminderDeliveryMapper.class);
         idGenerator = Mockito.mock(IdGenerator.class);
+        outboxService = Mockito.mock(OutboxService.class);
 
         when(idGenerator.nextId()).thenReturn(7001L, 7002L);
 
@@ -46,6 +50,8 @@ class ReminderServiceImplTest
         setField(reminderService, "planMapper", planMapper);
         setField(reminderService, "deliveryMapper", deliveryMapper);
         setField(reminderService, "idGenerator", idGenerator);
+        setField(reminderService, "outboxService", outboxService);
+        setField(reminderService, "objectMapper", new ObjectMapper());
     }
 
     @AfterEach

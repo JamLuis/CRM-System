@@ -31,6 +31,7 @@ class OutboxWorkerTest
     void setup()
     {
         outboxService = Mockito.mock(OutboxService.class);
+        when(outboxService.claimForDelivery(anyLong(), anyString(), anyInt())).thenReturn(true);
         successDispatcher = Mockito.mock(OutboxDispatcher.class);
         when(successDispatcher.supports(anyString())).thenReturn(true);
         when(successDispatcher.dispatch(any())).thenReturn(true);
@@ -53,6 +54,10 @@ class OutboxWorkerTest
             java.lang.reflect.Field mrField = OutboxWorker.class.getDeclaredField("maxRetries");
             mrField.setAccessible(true);
             mrField.set(worker, 3);
+
+            java.lang.reflect.Field timeoutField = OutboxWorker.class.getDeclaredField("sendingTimeoutSeconds");
+            timeoutField.setAccessible(true);
+            timeoutField.set(worker, 300);
 
             java.lang.reflect.Field dtField = OutboxWorker.class.getDeclaredField("defaultTenantId");
             dtField.setAccessible(true);
@@ -95,13 +100,13 @@ class OutboxWorkerTest
         setDispatchers(successDispatcher);
         CrmOutbox msg = createOutbox(1L, 0, 0);
         when(outboxService.findPending("default", 50)).thenReturn(Collections.singletonList(msg));
-        when(outboxService.updateStatus(eq(1L), eq("default"), anyString(), anyInt(), any(), eq(0)))
+        when(outboxService.updateStatus(eq(1L), eq("default"), anyString(), anyInt(), any(), eq(1)))
                 .thenReturn(true);
 
         worker.processPending();
 
         ArgumentCaptor<String> statusCaptor = ArgumentCaptor.forClass(String.class);
-        verify(outboxService).updateStatus(eq(1L), eq("default"), statusCaptor.capture(), eq(0), any(), eq(0));
+        verify(outboxService).updateStatus(eq(1L), eq("default"), statusCaptor.capture(), eq(0), any(), eq(1));
         assertEquals("SENT", statusCaptor.getValue());
     }
 
@@ -118,7 +123,7 @@ class OutboxWorkerTest
 
         ArgumentCaptor<String> statusCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Integer> retryCaptor = ArgumentCaptor.forClass(Integer.class);
-        verify(outboxService).updateStatus(eq(1L), eq("default"), statusCaptor.capture(), retryCaptor.capture(), any(), eq(0));
+        verify(outboxService).updateStatus(eq(1L), eq("default"), statusCaptor.capture(), retryCaptor.capture(), any(), eq(1));
         assertEquals("FAILED", statusCaptor.getValue());
         assertEquals(1, retryCaptor.getValue());
     }
@@ -136,7 +141,7 @@ class OutboxWorkerTest
         worker.processRetry();
 
         ArgumentCaptor<String> statusCaptor = ArgumentCaptor.forClass(String.class);
-        verify(outboxService).updateStatus(eq(1L), eq("default"), statusCaptor.capture(), eq(3), any(), eq(0));
+        verify(outboxService).updateStatus(eq(1L), eq("default"), statusCaptor.capture(), eq(3), any(), eq(1));
         assertEquals("DEAD", statusCaptor.getValue());
     }
 
@@ -152,8 +157,23 @@ class OutboxWorkerTest
         worker.processPending();
 
         ArgumentCaptor<String> statusCaptor = ArgumentCaptor.forClass(String.class);
-        verify(outboxService).updateStatus(eq(1L), eq("default"), statusCaptor.capture(), eq(0), any(), eq(0));
+        verify(outboxService).updateStatus(eq(1L), eq("default"), statusCaptor.capture(), eq(0), any(), eq(1));
         assertEquals("DEAD", statusCaptor.getValue());
+    }
+
+    @Test
+    @DisplayName("未抢占到消息时不重复投递")
+    void testClaimLostSkipsDispatch()
+    {
+        setDispatchers(successDispatcher);
+        CrmOutbox msg = createOutbox(1L, 0, 0);
+        when(outboxService.findPending("default", 50)).thenReturn(Collections.singletonList(msg));
+        when(outboxService.claimForDelivery(1L, "default", 0)).thenReturn(false);
+
+        worker.processPending();
+
+        verify(successDispatcher, never()).dispatch(any());
+        verify(outboxService, never()).updateStatus(any(), any(), any(), anyInt(), any(), anyInt());
     }
 
     private CrmOutbox createOutbox(Long id, int retryCount, int version)

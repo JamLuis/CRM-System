@@ -32,9 +32,10 @@ public class DataJobController
      * @return 预检作业（含逐行结果）
      */
     @PostMapping("/imports")
-    public R<CrmDataJob> uploadImport(@RequestParam("file") MultipartFile file)
+    public R<CrmDataJob> uploadImport(@RequestParam("file") MultipartFile file,
+                                      @RequestParam(value = "importType", defaultValue = "CUSTOMER") String importType)
     {
-        return R.ok(dataJobService.uploadImport(file));
+        return R.ok(dataJobService.uploadImport(file, importType));
     }
 
     /**

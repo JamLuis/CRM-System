@@ -1,5 +1,7 @@
 package com.ruoyi.crm.customer.domain;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.ruoyi.crm.common.domain.CrmBaseEntity;
 
 /**
@@ -12,7 +14,10 @@ public class CrmContact extends CrmBaseEntity
     private static final long serialVersionUID = 1L;
 
     /** 联系人ID（雪花） */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long contactId;
+    /** 外部来源数据 ID（用于幂等导入） */
+    private String sourceDataId;
     /** 客户ID */
     private Long customerId;
     /** 联系人姓名 */
@@ -43,6 +48,10 @@ public class CrmContact extends CrmBaseEntity
     private String remark;
     /** 状态(有效/已停用) */
     private String status;
+    /** 导入源负责人名称 */
+    private String sourceOwnerNames;
+    /** 导入源协同人名称 */
+    private String sourceCollaboratorNames;
 
     public Long getContactId()
     {
@@ -52,6 +61,16 @@ public class CrmContact extends CrmBaseEntity
     public void setContactId(Long contactId)
     {
         this.contactId = contactId;
+    }
+
+    public String getSourceDataId()
+    {
+        return sourceDataId;
+    }
+
+    public void setSourceDataId(String sourceDataId)
+    {
+        this.sourceDataId = sourceDataId;
     }
 
     public Long getCustomerId()
@@ -202,5 +221,25 @@ public class CrmContact extends CrmBaseEntity
     public void setStatus(String status)
     {
         this.status = status;
+    }
+
+    public String getSourceOwnerNames()
+    {
+        return sourceOwnerNames;
+    }
+
+    public void setSourceOwnerNames(String sourceOwnerNames)
+    {
+        this.sourceOwnerNames = sourceOwnerNames;
+    }
+
+    public String getSourceCollaboratorNames()
+    {
+        return sourceCollaboratorNames;
+    }
+
+    public void setSourceCollaboratorNames(String sourceCollaboratorNames)
+    {
+        this.sourceCollaboratorNames = sourceCollaboratorNames;
     }
 }

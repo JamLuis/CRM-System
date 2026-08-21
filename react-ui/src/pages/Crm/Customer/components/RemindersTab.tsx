@@ -5,7 +5,7 @@ import { cancelRemindersByCustomer, getRemindersByCustomer } from '@/services/cr
 import { REMINDER_STATUS_ENUM } from '../../constants';
 
 export type RemindersTabProps = {
-  customerId: number;
+  customerId: API.Crm.Id;
 };
 
 /** 客户提醒计划 */

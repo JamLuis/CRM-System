@@ -79,5 +79,6 @@ public interface OrgSyncService
         public String cursor;
         public java.util.Date lastSyncTime;
         public String status;
+        public String errorSummary;
     }
 }

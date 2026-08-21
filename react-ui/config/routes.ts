@@ -13,7 +13,7 @@
 export default [
   {
     path: '/',
-    redirect: '/account/center',
+    redirect: '/crm/customer',
   },
   {
     path: '*',
@@ -32,48 +32,6 @@ export default [
     ],
   },
   {
-    path: '/account',
-    routes: [
-      {
-        name: 'acenter',
-        path: '/account/center',
-        component: './User/Center',
-      },
-      {
-        name: 'asettings',
-        path: '/account/settings',
-        component: './User/Settings',
-      },
-    ],
-  },
-  {
-    name: 'system',
-    path: '/system',
-    routes: [
-      {
-        name: '字典数据',
-        path: '/system/dict-data/index/:id',
-        component: './System/DictData',
-      },
-      {
-        name: '分配用户',
-        path: '/system/role-auth/user/:id',
-        component: './System/Role/authUser',
-      },
-    ]
-  },
-  {
-    name: 'monitor',
-    path: '/monitor',
-    routes: [
-      {
-        name: '任务日志',
-        path: '/monitor/job-log/index/:id',
-        component: './Monitor/JobLog',
-      },
-    ]
-  },
-  {
     name: 'crm',
     path: '/crm',
     routes: [
@@ -82,7 +40,7 @@ export default [
         path: '/crm/customer/detail/:id',
         component: './Crm/Customer/detail',
       },
-    ]
+    ],
   },
   {
     name: 'crmH5',
@@ -114,22 +72,6 @@ export default [
         path: '/crm/h5/todos',
         component: './Crm/H5/todos',
       },
-    ]
-  },
-  {
-    name: 'tool',
-    path: '/tool',
-    routes: [
-      {
-        name: '导入表',
-        path: '/tool/gen/import',
-        component: './Tool/Gen/import',
-      },
-      {
-        name: '编辑表',
-        path: '/tool/gen/edit',
-        component: './Tool/Gen/edit',
-      },
-    ]
+    ],
   },
 ];

@@ -15,7 +15,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
  */
 public class JwtUtils
 {
-    public static String secret = TokenConstants.SECRET;
+    private static volatile String secret;
 
     /**
      * 从数据声明生成令牌
@@ -25,7 +25,8 @@ public class JwtUtils
      */
     public static String createToken(Map<String, Object> claims)
     {
-        String token = Jwts.builder().setClaims(claims).signWith(SignatureAlgorithm.HS512, secret).compact();
+        String token = Jwts.builder().setClaims(claims)
+                .signWith(SignatureAlgorithm.HS512, getSecret()).compact();
         return token;
     }
 
@@ -37,7 +38,7 @@ public class JwtUtils
      */
     public static Claims parseToken(String token)
     {
-        return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody();
+        return Jwts.parser().setSigningKey(getSecret()).parseClaimsJws(token).getBody();
     }
 
     /**
@@ -119,5 +120,33 @@ public class JwtUtils
     public static String getValue(Claims claims, String key)
     {
         return Convert.toStr(claims.get(key), "");
+    }
+
+    private static String getSecret()
+    {
+        String current = secret;
+        if (current == null)
+        {
+            synchronized (JwtUtils.class)
+            {
+                current = secret;
+                if (current == null)
+                {
+                    current = System.getProperty(TokenConstants.SECRET_ENV);
+                    if (current == null || current.trim().isEmpty())
+                    {
+                        current = System.getenv(TokenConstants.SECRET_ENV);
+                    }
+                    if (current == null || current.length() < TokenConstants.SECRET_MIN_LENGTH)
+                    {
+                        throw new IllegalStateException(TokenConstants.SECRET_ENV
+                                + " must be configured with at least "
+                                + TokenConstants.SECRET_MIN_LENGTH + " characters");
+                    }
+                    secret = current;
+                }
+            }
+        }
+        return current;
     }
 }

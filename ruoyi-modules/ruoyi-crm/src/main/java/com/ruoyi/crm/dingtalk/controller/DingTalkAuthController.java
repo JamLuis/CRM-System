@@ -140,7 +140,7 @@ public class DingTalkAuthController
     /**
      * 获取钉钉微应用配置（供前端 JSAPI 鉴权）
      * <p>
-     * 返回 corpId 和 agentId，前端用于 dd.config 鉴权。
+     * 返回 corpId、clientId（AppKey）和 agentId，前端用于获取免登授权码。
      * 不返回 clientSecret。
      */
     @PostMapping("/config")
@@ -153,6 +153,7 @@ public class DingTalkAuthController
 
         Map<String, Object> config = new HashMap<>();
         config.put("corpId", properties.getCorpId());
+        config.put("clientId", properties.getClientId());
         config.put("agentId", properties.getAgentId());
         return R.ok(config);
     }

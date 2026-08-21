@@ -17,9 +17,10 @@ public class TokenConstants
      */
     public static final String PREFIX = "Bearer ";
 
-    /**
-     * 令牌秘钥
-     */
-    public final static String SECRET = "abcdefghijklmnopqrstuvwxyz";
+    /** JWT 签名密钥的运行时环境变量名。 */
+    public static final String SECRET_ENV = "JWT_SECRET";
+
+    /** HS512 密钥的最低安全长度（字符）。 */
+    public static final int SECRET_MIN_LENGTH = 64;
 
 }

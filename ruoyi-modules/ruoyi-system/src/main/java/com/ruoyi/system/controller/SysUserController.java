@@ -1,6 +1,8 @@
 package com.ruoyi.system.controller;
 
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -49,6 +51,7 @@ import com.ruoyi.system.service.ISysUserService;
 @RequestMapping("/user")
 public class SysUserController extends BaseController
 {
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     @Autowired
     private ISysUserService userService;
 
@@ -349,7 +352,10 @@ public class SysUserController extends BaseController
         }
         else
         {
-            sysUser.setPassword(SecurityUtils.encryptPassword("dingtalk_" + sysUser.getUserName()));
+            byte[] passwordBytes = new byte[32];
+            SECURE_RANDOM.nextBytes(passwordBytes);
+            sysUser.setPassword(SecurityUtils.encryptPassword(
+                    Base64.getUrlEncoder().withoutPadding().encodeToString(passwordBytes)));
         }
         userService.insertUser(sysUser);
         return R.ok(sysUser.getUserId());
@@ -363,7 +369,8 @@ public class SysUserController extends BaseController
     public R<Boolean> innerEdit(@RequestBody SysUser sysUser)
     {
         sysUser.setUpdateBy("dingtalk-sync");
-        return R.ok(userService.updateUser(sysUser) > 0);
+        // 组织资料刷新不得清空用户已有角色/岗位授权。
+        return R.ok(userService.updateUserProfile(sysUser) > 0);
     }
 
     /**
@@ -378,6 +385,17 @@ public class SysUserController extends BaseController
         user.setStatus(status);
         user.setUpdateBy("dingtalk-sync");
         return R.ok(userService.updateUserStatus(user) > 0);
+    }
+
+    /**
+     * 内部调用：显式替换用户角色。组织同步不会调用此接口。
+     */
+    @InnerAuth
+    @PutMapping("/inner/authRole")
+    public R<Boolean> innerAuthRoles(@RequestParam("userId") Long userId, @RequestBody Long[] roleIds)
+    {
+        userService.insertUserAuth(userId, roleIds == null ? new Long[0] : roleIds);
+        return R.ok(Boolean.TRUE);
     }
 
     /**

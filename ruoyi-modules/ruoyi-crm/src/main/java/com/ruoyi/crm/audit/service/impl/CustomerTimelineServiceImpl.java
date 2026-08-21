@@ -1,5 +1,6 @@
 package com.ruoyi.crm.audit.service.impl;
 
+import com.alibaba.fastjson2.JSON;
 import com.ruoyi.crm.audit.domain.CrmCustomerTimeline;
 import com.ruoyi.crm.audit.mapper.CrmCustomerTimelineMapper;
 import com.ruoyi.crm.audit.service.CustomerTimelineService;
@@ -28,7 +29,28 @@ public class CustomerTimelineServiceImpl implements CustomerTimelineService
         {
             timeline.setId(idGenerator.nextId());
         }
+        timeline.setEventData(normalizeJson(timeline.getEventData()));
         timelineMapper.insert(timeline);
+    }
+
+    /**
+     * 时间线事件列为 JSON；普通文本转换成合法 JSON 字符串。
+     */
+    private String normalizeJson(String value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+        try
+        {
+            JSON.parse(value);
+            return value;
+        }
+        catch (Exception ignored)
+        {
+            return JSON.toJSONString(value);
+        }
     }
 
     @Override

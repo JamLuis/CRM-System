@@ -3,6 +3,9 @@
 // 后端统一返回 RuoYi R<T> = { code: number; msg: string; data: T }
 
 declare namespace API.Crm {
+  /** 后端雪花 ID 超出 JavaScript 安全整数范围，统一按字符串传输。 */
+  type Id = string | number;
+
   /** RuoYi 统一响应体 */
   interface R<T = any> {
     code: number;
@@ -14,7 +17,7 @@ declare namespace API.Crm {
 
   /** 客户实体（对应 CrmCustomer） */
   interface Customer {
-    customerId?: number;
+    customerId?: Id;
     customerCode?: string;
     name?: string;
     activeNameKey?: string;
@@ -25,6 +28,13 @@ declare namespace API.Crm {
     addressDetail?: string;
     /** 客户标签（JSON 数组字符串） */
     tags?: string;
+    /** 跟进力度（导入源字段） */
+    followUpIntensity?: string;
+    /** 导入源客户跟进状态 */
+    sourceFollowUpStatus?: string;
+    customerGroup?: string;
+    /** 导入源客户状态 */
+    sourceCustomerStatus?: string;
     /** 生命周期阶段 */
     lifecycleStage?: string;
     /** 经营状态：正常/暂停跟进/已失效/已归档 */
@@ -35,7 +45,13 @@ declare namespace API.Crm {
     /** 重要程度：一般/重要/非常重要 */
     importance?: string;
     source?: string;
+    referredCustomerName?: string;
+    sourceOther?: string;
     industry?: string;
+    industryOther?: string;
+    sourceCreatorName?: string;
+    sourceOwnerName?: string;
+    sourceCollaboratorNames?: string;
     remark?: string;
     primaryOwnerId?: number;
     primaryOwnerName?: string;
@@ -45,9 +61,15 @@ declare namespace API.Crm {
     nextFollowUpAt?: string;
     lastEffectiveFollowUpAt?: string;
     archivedAt?: string;
+    droppedProtectionAt?: string;
     /** 跟进状态：NORMAL/INSUFFICIENT/SEVERE_INSUFFICIENT/NOT_ASSESSED */
     followUpStatus?: string;
     followUpStatusCalculatedAt?: string;
+    followUpRecordCount?: number;
+    collaboratorNames?: string;
+    latestActivityAt?: string;
+    latestVisitAt?: string;
+    latestAssignmentAt?: string;
     /** 乐观锁版本号 */
     version?: number;
     createBy?: string;
@@ -68,8 +90,9 @@ declare namespace API.Crm {
   // ==================== 联系人 ====================
 
   interface Contact {
-    contactId?: number;
-    customerId?: number;
+    contactId?: Id;
+    sourceDataId?: string;
+    customerId?: Id;
     name?: string;
     /** 电话类型：手机/座机/其他 */
     phoneType?: string;
@@ -87,6 +110,8 @@ declare namespace API.Crm {
     remark?: string;
     /** 状态：有效/已停用 */
     status?: string;
+    sourceOwnerNames?: string;
+    sourceCollaboratorNames?: string;
     version?: number;
     createTime?: string;
   }
@@ -95,7 +120,7 @@ declare namespace API.Crm {
 
   interface CustomerOwner {
     id?: number;
-    customerId?: number;
+    customerId?: Id;
     userId?: number;
     userName?: string;
     /** 角色类型：PRIMARY/COLLABORATOR */
@@ -105,7 +130,7 @@ declare namespace API.Crm {
 
   interface OwnerChange {
     id?: number;
-    customerId?: number;
+    customerId?: Id;
     changeType?: string;
     previousPrimaryOwnerId?: number;
     previousPrimaryOwnerName?: string;
@@ -136,8 +161,9 @@ declare namespace API.Crm {
   // ==================== 跟踪 ====================
 
   interface FollowUp {
-    followUpId?: number;
-    customerId?: number;
+    followUpId?: Id;
+    sourceDataId?: string;
+    customerId?: Id;
     /** 方式：电话/面谈/微信/邮件/其他 */
     method?: string;
     followUpAt?: string;
@@ -147,7 +173,7 @@ declare namespace API.Crm {
     nextAction?: string;
     nextFollowUpAt?: string;
     noNextFollowUpReason?: string;
-    correctionOfFollowUpId?: number;
+    correctionOfFollowUpId?: Id;
     correctionReason?: string;
     isCorrected?: boolean;
     isVoided?: boolean;
@@ -155,19 +181,26 @@ declare namespace API.Crm {
     createdBy?: number;
     createdByName?: string;
     immutableAt?: string;
+    sourceContactNames?: string;
+    sourceAttachmentRefs?: string;
+    sourceIsKeyCustomer?: boolean;
+    sourceCreatorDept?: string;
+    sourceApprovalTitle?: string;
+    sourceOwnerNames?: string;
+    sourceCollaboratorNames?: string;
     createTime?: string;
   }
 
   interface FollowUpCreateRequest {
     followUp: FollowUp;
-    contactIds?: number[];
-    attachmentIds?: number[];
+    contactIds?: Id[];
+    attachmentIds?: Id[];
   }
 
   interface FollowUpCorrectRequest {
     followUp: FollowUp;
-    contactIds?: number[];
-    attachmentIds?: number[];
+    contactIds?: Id[];
+    attachmentIds?: Id[];
     correctionReason: string;
   }
 
@@ -194,6 +227,8 @@ declare namespace API.Crm {
     scanStartedAt?: string;
     scanCompletedAt?: string;
     scanErrorCode?: string;
+    uploadUrl?: string;
+    downloadUrl?: string;
     createTime?: string;
   }
 
@@ -201,7 +236,7 @@ declare namespace API.Crm {
 
   interface ReminderPlan {
     planId?: number;
-    customerId?: number;
+    customerId?: Id;
     sourceFollowUpId?: number;
     planKey?: string;
     plannedFollowUpAt?: string;
@@ -216,7 +251,7 @@ declare namespace API.Crm {
   interface ReminderDelivery {
     deliveryId?: number;
     planId?: number;
-    customerId?: number;
+    customerId?: Id;
     planKey?: string;
     plannedFollowUpAt?: string;
     scheduledAt?: string;
@@ -263,7 +298,7 @@ declare namespace API.Crm {
 
   interface CustomerTimeline {
     id?: number;
-    customerId?: number;
+    customerId?: Id;
     eventType?: string;
     /** 事件数据（JSON 字符串） */
     eventData?: string;
@@ -283,6 +318,33 @@ declare namespace API.Crm {
     dept?: { deptId?: number; deptName?: string };
     status?: string;
     dingtalkUserId?: string;
+  }
+
+  interface DingTalkDirectoryUser {
+    id?: number;
+    dingtalkUserId: string;
+    name?: string;
+    mobile?: string;
+    email?: string;
+    title?: string;
+    deptIds?: string;
+    deptNames?: string;
+    sysDeptId?: number;
+    active?: boolean;
+    lastSyncTime?: string;
+    accessGranted?: boolean;
+    sysUserId?: number;
+    /** 逗号分隔的角色 ID，由列表聚合查询返回 */
+    roleIds?: string;
+    roleNames?: string;
+    permissionCodes?: string;
+  }
+
+  interface CrmRoleOption {
+    roleId: number;
+    roleName: string;
+    roleKey: string;
+    roleSort?: number;
   }
 
   // ==================== Outbox 死信 ====================
@@ -310,6 +372,8 @@ declare namespace API.Crm {
 
   interface DingTalkConfig {
     corpId?: string;
+    /** 钉钉应用 AppKey，新版 requestAuthCode 用于绑定授权码所属应用 */
+    clientId?: string;
     agentId?: string;
   }
 
@@ -357,6 +421,9 @@ declare namespace API.Crm {
   /** 作业类型：IMPORT / EXPORT */
   type DataJobType = 'IMPORT' | 'EXPORT';
 
+  /** 导入对象类型 */
+  type DataImportType = 'CUSTOMER' | 'CONTACT' | 'FOLLOW_UP';
+
   /** 作业状态：PENDING / RUNNING / VALIDATED / SUCCESS / FAILED / EXPIRED */
   type DataJobStatus = 'PENDING' | 'RUNNING' | 'VALIDATED' | 'SUCCESS' | 'FAILED' | 'EXPIRED';
 
@@ -368,14 +435,15 @@ declare namespace API.Crm {
     message?: string;
     /** SUCCESS / FAILED / SKIPPED */
     result?: string;
-    customerId?: number;
+    customerId?: Id;
   }
 
   /** 数据作业（对应 CrmDataJob） */
   interface CrmDataJob {
-    jobId?: number;
+    jobId?: Id;
     tenantId?: string;
     jobType?: DataJobType;
+    importType?: DataImportType;
     status?: DataJobStatus;
     fileName?: string;
     storageKey?: string;

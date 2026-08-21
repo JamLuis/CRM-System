@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.Date;
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.List;
  * @author ruoyi-crm
  */
 @Component
+@ConditionalOnProperty(name = "crm.reminder.legacy-worker.enabled", havingValue = "true")
 public class ReminderDeliveryWorker
 {
     private static final Logger log = LoggerFactory.getLogger(ReminderDeliveryWorker.class);

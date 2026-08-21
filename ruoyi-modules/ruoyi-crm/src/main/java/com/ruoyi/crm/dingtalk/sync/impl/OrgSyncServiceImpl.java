@@ -9,8 +9,11 @@ import com.ruoyi.crm.dingtalk.domain.DingTalkDept;
 import com.ruoyi.crm.dingtalk.domain.DingTalkDeptUser;
 import com.ruoyi.crm.dingtalk.sync.OrgSyncService;
 import com.ruoyi.crm.tenant.domain.CrmDingtalkIdentity;
+import com.ruoyi.crm.tenant.domain.CrmDingtalkDirectoryUser;
 import com.ruoyi.crm.tenant.domain.CrmOrgSyncCursor;
 import com.ruoyi.crm.tenant.mapper.CrmDingtalkIdentityMapper;
+import com.ruoyi.crm.tenant.mapper.CrmDingtalkDirectoryUserMapper;
+import com.ruoyi.crm.tenant.mapper.CrmDingtalkDeptMapMapper;
 import com.ruoyi.crm.tenant.mapper.CrmOrgSyncCursorMapper;
 import com.ruoyi.system.api.RemoteDeptService;
 import com.ruoyi.system.api.RemoteUserService;
@@ -22,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 组织架构同步服务实现
@@ -43,7 +47,6 @@ public class OrgSyncServiceImpl implements OrgSyncService
 
     private static final String SYNC_TYPE = "DINGTALK";
     private static final String SOURCE_INNER = SecurityConstants.INNER;
-    private static final Long ROOT_DEPT_ID = 1L;
 
     @Autowired
     private DingTalkClient dingTalkClient;
@@ -53,6 +56,12 @@ public class OrgSyncServiceImpl implements OrgSyncService
 
     @Autowired
     private CrmDingtalkIdentityMapper identityMapper;
+
+    @Autowired
+    private CrmDingtalkDirectoryUserMapper directoryUserMapper;
+
+    @Autowired
+    private CrmDingtalkDeptMapMapper deptMapMapper;
 
     @Autowired
     private CrmOrgSyncCursorMapper cursorMapper;
@@ -68,17 +77,32 @@ public class OrgSyncServiceImpl implements OrgSyncService
 
     /** 钉钉部门 ID → RuoYi 部门 ID 映射（同步过程中构建） */
     private final Map<Long, Long> deptIdMap = new HashMap<>();
+    /** 钉钉部门 ID → 部门名称，用于授权列表展示组织机构。 */
+    private final Map<Long, String> deptNameMap = new HashMap<>();
+    /** 用于首次迁移时复用现有同父同名系统部门。 */
+    private final Map<String, SysDept> existingDeptMap = new HashMap<>();
+    /** 一次全量同步中人员去重。 */
+    private final Set<String> syncedUserIds = new HashSet<>();
 
     @Override
-    public SyncResult fullSync(String tenantId)
+    public synchronized SyncResult fullSync(String tenantId)
     {
         SyncResult result = new SyncResult(true);
         log.info("Starting full org sync for tenant: {}", tenantId);
 
         try
         {
+            deptIdMap.clear();
+            deptNameMap.clear();
+            existingDeptMap.clear();
+            syncedUserIds.clear();
+            loadExistingSystemDepts();
+            Long dingTalkRootDeptId = properties.getRootDeptId();
+            Long systemRootDeptId = properties.getSystemRootDeptId();
+            deptIdMap.put(dingTalkRootDeptId, systemRootDeptId);
+
             // 1. 同步部门（从根部门递归）
-            syncDeptsRecursive(ROOT_DEPT_ID, tenantId, result);
+            syncDeptsRecursive(dingTalkRootDeptId, tenantId, result);
 
             // 2. 同步人员（遍历所有已同步部门）
             for (Map.Entry<Long, Long> entry : deptIdMap.entrySet())
@@ -171,7 +195,8 @@ public class OrgSyncServiceImpl implements OrgSyncService
         info.source = cursor.getSource();
         info.cursor = cursor.getCursor();
         info.lastSyncTime = cursor.getLastSyncTime();
-        info.status = "SUCCESS";
+        info.status = cursor.getStatus();
+        info.errorSummary = cursor.getErrorSummary();
         return info;
     }
 
@@ -190,6 +215,7 @@ public class OrgSyncServiceImpl implements OrgSyncService
                 // 在 RuoYi 中创建或更新部门
                 Long sysDeptId = syncDept(dept, parentDingTalkDeptId, tenantId);
                 deptIdMap.put(dept.getDeptId(), sysDeptId);
+                deptNameMap.put(dept.getDeptId(), dept.getName());
                 result.deptCount++;
 
                 // 递归子部门
@@ -198,7 +224,8 @@ public class OrgSyncServiceImpl implements OrgSyncService
         }
         catch (Exception e)
         {
-            log.warn("Failed to sync depts under {}: {}", parentDingTalkDeptId, e.getMessage());
+            throw new IllegalStateException("同步钉钉部门失败，parentDeptId="
+                    + parentDingTalkDeptId, e);
         }
     }
 
@@ -220,20 +247,42 @@ public class OrgSyncServiceImpl implements OrgSyncService
         }
         else
         {
-            sysDept.setParentId(ROOT_DEPT_ID);
+            sysDept.setParentId(properties.getSystemRootDeptId());
+        }
+
+        Long mappedSysDeptId = deptMapMapper.selectSysDeptId(tenantId, dtDept.getDeptId());
+        if (mappedSysDeptId != null)
+        {
+            sysDept.setDeptId(mappedSysDeptId);
+            R<Boolean> editResponse = remoteDeptService.innerEditDept(sysDept, SOURCE_INNER);
+            if (editResponse == null || !R.isSuccess(editResponse))
+            {
+                log.warn("Failed to update mapped dept via Feign: {}, sysDeptId={}",
+                        dtDept.getName(), mappedSysDeptId);
+            }
+            return mappedSysDeptId;
+        }
+
+        SysDept existingDept = existingDeptMap.get(deptKey(sysDept.getParentId(), sysDept.getDeptName()));
+        if (existingDept != null)
+        {
+            deptMapMapper.upsert(idGenerator.nextId(), tenantId, dtDept.getDeptId(),
+                    existingDept.getDeptId(), dtDept.getName());
+            return existingDept.getDeptId();
         }
 
         // 通过 Feign 创建部门
         R<Long> resp = remoteDeptService.innerAddDept(sysDept, SOURCE_INNER);
         if (resp != null && R.isSuccess(resp) && resp.getData() != null)
         {
-            return resp.getData();
+            Long newSysDeptId = resp.getData();
+            sysDept.setDeptId(newSysDeptId);
+            deptMapMapper.upsert(idGenerator.nextId(), tenantId, dtDept.getDeptId(),
+                    newSysDeptId, dtDept.getName());
+            existingDeptMap.put(deptKey(sysDept.getParentId(), sysDept.getDeptName()), sysDept);
+            return newSysDeptId;
         }
-        else
-        {
-            log.warn("Failed to create dept via Feign: {}", dtDept.getName());
-            return ROOT_DEPT_ID;
-        }
+        throw new IllegalStateException("创建系统部门失败：" + dtDept.getName());
     }
 
     /**
@@ -249,8 +298,17 @@ public class OrgSyncServiceImpl implements OrgSyncService
                 List<DingTalkDeptUser> users = dingTalkClient.getDeptUserList(dingTalkDeptId, cursor, 100L);
                 for (DingTalkDeptUser user : users)
                 {
+                    if (!syncedUserIds.add(user.getUserid()))
+                    {
+                        continue;
+                    }
                     syncSingleUser(user, sysDeptId, tenantId);
                     result.userCount++;
+                    result.userUpdated++;
+                    if (Boolean.FALSE.equals(user.getActive()))
+                    {
+                        result.userDeactivated++;
+                    }
                 }
 
                 if (!dingTalkClient.hasMore(dingTalkDeptId, cursor, 100L))
@@ -262,7 +320,8 @@ public class OrgSyncServiceImpl implements OrgSyncService
         }
         catch (Exception e)
         {
-            log.warn("Failed to sync users in dept {}: {}", dingTalkDeptId, e.getMessage());
+            throw new IllegalStateException("同步钉钉部门人员失败，deptId="
+                    + dingTalkDeptId, e);
         }
     }
 
@@ -273,18 +332,34 @@ public class OrgSyncServiceImpl implements OrgSyncService
     {
         try
         {
-            // 1. 检查是否已有身份映射
+            Long primarySysDeptId = resolvePrimarySystemDept(dtUser.getDeptIdList(), sysDeptId);
+            CrmDingtalkDirectoryUser directoryUser = new CrmDingtalkDirectoryUser();
+            directoryUser.setId(idGenerator.nextId());
+            directoryUser.setTenantId(tenantId);
+            directoryUser.setDingtalkUserId(dtUser.getUserid());
+            directoryUser.setUnionId(dtUser.getUnionid());
+            directoryUser.setName(dtUser.getName());
+            directoryUser.setMobile(dtUser.getMobile());
+            directoryUser.setEmail(dtUser.getEmail());
+            directoryUser.setTitle(dtUser.getTitle());
+            directoryUser.setDeptIds(joinLongs(dtUser.getDeptIdList()));
+            directoryUser.setDeptNames(joinDeptNames(dtUser.getDeptIdList()));
+            directoryUser.setSysDeptId(primarySysDeptId);
+            directoryUser.setActive(!Boolean.FALSE.equals(dtUser.getActive()));
+            directoryUser.setLastSyncTime(new Date());
+            directoryUserMapper.upsert(directoryUser);
+
+            // 已授权人员继续同步基本资料；未授权人员不得创建系统账号或身份映射。
             CrmDingtalkIdentity existing = identityMapper.selectByDingtalkUserId(tenantId, dtUser.getUserid());
 
             if (existing != null)
             {
-                // 已映射 — 更新用户信息
                 SysUser sysUser = new SysUser();
                 sysUser.setUserId(existing.getSysUserId());
                 sysUser.setNickName(dtUser.getName());
                 sysUser.setPhonenumber(dtUser.getMobile());
                 sysUser.setEmail(dtUser.getEmail());
-                sysUser.setDeptId(sysDeptId);
+                sysUser.setDeptId(primarySysDeptId);
                 // 离职用户停用
                 if (dtUser.getActive() != null && !dtUser.getActive())
                 {
@@ -294,7 +369,11 @@ public class OrgSyncServiceImpl implements OrgSyncService
                 {
                     sysUser.setStatus("0"); // 正常
                 }
-                remoteUserService.innerEditUser(sysUser, SOURCE_INNER);
+                R<Boolean> editResult = remoteUserService.innerEditUser(sysUser, SOURCE_INNER);
+                if (editResult == null || !R.isSuccess(editResult) || !Boolean.TRUE.equals(editResult.getData()))
+                {
+                    throw new IllegalStateException("更新已授权系统用户失败：" + existing.getSysUserId());
+                }
 
                 // 更新身份映射的 unionId
                 if (dtUser.getUnionid() != null && !dtUser.getUnionid().equals(existing.getUnionId()))
@@ -303,40 +382,67 @@ public class OrgSyncServiceImpl implements OrgSyncService
                     identityMapper.update(existing);
                 }
             }
-            else
-            {
-                // 未映射 — 新建用户
-                SysUser sysUser = new SysUser();
-                sysUser.setUserName(dtUser.getUserid()); // 用钉钉用户 ID 作为登录名
-                sysUser.setNickName(dtUser.getName());
-                sysUser.setPhonenumber(dtUser.getMobile());
-                sysUser.setEmail(dtUser.getEmail());
-                sysUser.setDeptId(sysDeptId);
-                sysUser.setStatus(dtUser.getActive() != null && !dtUser.getActive() ? "1" : "0");
-                sysUser.setPassword("dingtalk_default");
-
-                R<Long> resp = remoteUserService.innerAddUser(sysUser, SOURCE_INNER);
-                if (resp != null && R.isSuccess(resp) && resp.getData() != null)
-                {
-                    // 创建身份映射
-                    CrmDingtalkIdentity identity = new CrmDingtalkIdentity();
-                    identity.setId(idGenerator.nextId());
-                    identity.setTenantId(tenantId);
-                    identity.setDingtalkUserId(dtUser.getUserid());
-                    identity.setSysUserId(resp.getData());
-                    identity.setUnionId(dtUser.getUnionid());
-                    identityMapper.insert(identity);
-                }
-                else
-                {
-                    log.warn("Failed to create user via Feign: {}", dtUser.getUserid());
-                }
-            }
         }
         catch (Exception e)
         {
-            log.warn("Failed to sync user {}: {}", dtUser.getUserid(), e.getMessage());
+            throw new IllegalStateException("同步钉钉人员失败：" + dtUser.getUserid(), e);
         }
+    }
+
+    private String joinLongs(List<Long> values)
+    {
+        if (values == null || values.isEmpty())
+        {
+            return null;
+        }
+        return values.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    private void loadExistingSystemDepts()
+    {
+        R<List<SysDept>> response = remoteDeptService.innerList(SOURCE_INNER);
+        if (response == null || !R.isSuccess(response) || response.getData() == null)
+        {
+            throw new IllegalStateException("读取系统部门列表失败");
+        }
+        for (SysDept dept : response.getData())
+        {
+            existingDeptMap.put(deptKey(dept.getParentId(), dept.getDeptName()), dept);
+        }
+    }
+
+    private String deptKey(Long parentId, String deptName)
+    {
+        return String.valueOf(parentId) + "\u0000" + (deptName == null ? "" : deptName.trim());
+    }
+
+    private Long resolvePrimarySystemDept(List<Long> dingtalkDeptIds, Long fallbackSysDeptId)
+    {
+        if (dingtalkDeptIds != null)
+        {
+            for (Long dingtalkDeptId : dingtalkDeptIds)
+            {
+                Long mapped = deptIdMap.get(dingtalkDeptId);
+                if (mapped != null)
+                {
+                    return mapped;
+                }
+            }
+        }
+        return fallbackSysDeptId;
+    }
+
+    private String joinDeptNames(List<Long> deptIds)
+    {
+        if (deptIds == null || deptIds.isEmpty())
+        {
+            return null;
+        }
+        return deptIds.stream()
+                .map(deptNameMap::get)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.joining(" / "));
     }
 
     /**
@@ -351,6 +457,8 @@ public class OrgSyncServiceImpl implements OrgSyncService
             {
                 existing.setCursor(cursor);
                 existing.setLastSyncTime(new Date());
+                existing.setStatus(status);
+                existing.setErrorSummary(errorSummary);
                 cursorMapper.update(existing);
             }
             else
@@ -361,6 +469,8 @@ public class OrgSyncServiceImpl implements OrgSyncService
                 newCursor.setSource(SYNC_TYPE);
                 newCursor.setCursor(cursor);
                 newCursor.setLastSyncTime(new Date());
+                newCursor.setStatus(status);
+                newCursor.setErrorSummary(errorSummary);
                 cursorMapper.insert(newCursor);
             }
         }

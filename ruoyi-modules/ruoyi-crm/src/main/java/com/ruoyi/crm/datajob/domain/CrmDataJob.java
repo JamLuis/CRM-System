@@ -1,6 +1,8 @@
 package com.ruoyi.crm.datajob.domain;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.ruoyi.crm.common.domain.CrmBaseEntity;
 
 import java.util.Date;
@@ -21,9 +23,12 @@ public class CrmDataJob extends CrmBaseEntity
     private static final long serialVersionUID = 1L;
 
     /** 作业ID（雪花） */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long jobId;
     /** 作业类型（IMPORT/EXPORT） */
     private String jobType;
+    /** 导入数据类型（CUSTOMER/CONTACT/FOLLOW_UP；仅导入作业） */
+    private String importType;
     /** 作业状态（PENDING/RUNNING/VALIDATED/SUCCESS/FAILED/EXPIRED） */
     private String status;
     /** 源文件名（导入）/ 导出文件名 */
@@ -74,6 +79,16 @@ public class CrmDataJob extends CrmBaseEntity
     public void setJobType(String jobType)
     {
         this.jobType = jobType;
+    }
+
+    public String getImportType()
+    {
+        return importType;
+    }
+
+    public void setImportType(String importType)
+    {
+        this.importType = importType;
     }
 
     public String getStatus()

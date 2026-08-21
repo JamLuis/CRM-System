@@ -1,13 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Button, Card, Form, InputNumber, message, Modal, Space, Tag } from 'antd';
-import { ActionType, PageContainer, ProColumns, ProTable } from '@ant-design/pro-components';
-import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import {
   getActiveStrategy,
   getStrategies,
   recalculateFollowUpStatusBatch,
   saveFollowUpStatusStrategy,
 } from '@/services/crm/health';
+import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ActionType, PageContainer, ProColumns, ProTable } from '@ant-design/pro-components';
+import { Button, Card, Form, InputNumber, message, Modal, Space, Tag } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import { CRM_HORIZONTAL_FORM_PROPS } from '../components/formLayout';
 
 /** 跟进健康度策略管理 */
 const Strategy: React.FC = () => {
@@ -147,7 +148,7 @@ const Strategy: React.FC = () => {
         confirmLoading={submitting}
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} {...CRM_HORIZONTAL_FORM_PROPS}>
           <Form.Item
             name="insufficientThreshold"
             label="跟进不足阈值（天）"

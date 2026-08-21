@@ -4,22 +4,19 @@ import { request } from '@umijs/max';
 
 /** 钉钉免登登录（白名单接口，无需 token）：authCode 换取 CRM 会话 */
 export async function dingtalkLogin(authCode: string, options?: Record<string, any>) {
-  return request<API.Crm.R<API.Crm.DingTalkLoginResult>>(
-    '/api/crm/v1/dingtalk/auth/login',
-    {
-      method: 'POST',
-      params: { authCode },
-      ...(options || {}),
-    },
-  );
+  return request<API.Crm.R<API.Crm.DingTalkLoginResult>>('/api/crm/v1/dingtalk/auth/login', {
+    method: 'POST',
+    params: { authCode },
+    ...(options || {}),
+  });
 }
 
-/** 获取钉钉微应用配置（corpId/agentId） */
+/** 获取钉钉微应用公开配置（corpId/clientId/agentId） */
 export async function getDingtalkConfig(options?: Record<string, any>) {
-  return request<API.Crm.R<{ corpId?: string; agentId?: string }>>(
-    '/api/crm/v1/dingtalk/config',
-    { method: 'POST', ...(options || {}) },
-  );
+  return request<API.Crm.R<API.Crm.DingTalkConfig>>('/api/crm/v1/dingtalk/config', {
+    method: 'POST',
+    ...(options || {}),
+  });
 }
 
 // ==================== 我的待办 ====================

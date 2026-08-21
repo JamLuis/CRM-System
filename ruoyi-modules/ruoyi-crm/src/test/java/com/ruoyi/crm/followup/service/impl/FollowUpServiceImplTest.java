@@ -15,6 +15,7 @@ import com.ruoyi.crm.followup.mapper.CrmFollowUpMapper;
 import com.ruoyi.crm.followup.service.ReminderService;
 import com.ruoyi.crm.permission.PermissionContext;
 import com.ruoyi.crm.permission.PermissionService;
+import com.ruoyi.crm.permission.CustomerAccessGuard;
 import com.ruoyi.system.api.model.LoginUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,7 @@ class FollowUpServiceImplTest
     private CrmCustomerMapper customerMapper;
     private IdGenerator idGenerator;
     private PermissionService permissionService;
+    private CustomerAccessGuard customerAccessGuard;
     private AuditEventService auditEventService;
     private CustomerTimelineService timelineService;
     private ReminderService reminderService;
@@ -57,6 +59,7 @@ class FollowUpServiceImplTest
         customerMapper = Mockito.mock(CrmCustomerMapper.class);
         idGenerator = Mockito.mock(IdGenerator.class);
         permissionService = Mockito.mock(PermissionService.class);
+        customerAccessGuard = Mockito.mock(CustomerAccessGuard.class);
         auditEventService = Mockito.mock(AuditEventService.class);
         timelineService = Mockito.mock(CustomerTimelineService.class);
         reminderService = Mockito.mock(ReminderService.class);
@@ -80,6 +83,7 @@ class FollowUpServiceImplTest
         setField(followUpService, "customerMapper", customerMapper);
         setField(followUpService, "idGenerator", idGenerator);
         setField(followUpService, "permissionService", permissionService);
+        setField(followUpService, "customerAccessGuard", customerAccessGuard);
         setField(followUpService, "auditEventService", auditEventService);
         setField(followUpService, "timelineService", timelineService);
         setField(followUpService, "reminderService", reminderService);
@@ -187,6 +191,8 @@ class FollowUpServiceImplTest
         imageAttachment.setAttachmentId(5001L);
         imageAttachment.setStatus("AVAILABLE");
         imageAttachment.setContentType("image/jpeg");
+        imageAttachment.setOwnerType("CUSTOMER");
+        imageAttachment.setOwnerId(1001L);
         when(attachmentMapper.selectByAttachmentId("test-tenant", 5001L)).thenReturn(imageAttachment);
 
         when(followUpMapper.insert(any(CrmFollowUp.class))).thenReturn(1);

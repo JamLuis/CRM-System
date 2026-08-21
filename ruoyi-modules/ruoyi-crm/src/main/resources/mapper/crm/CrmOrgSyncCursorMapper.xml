@@ -8,29 +8,36 @@
         <result property="source"       column="source"/>
         <result property="cursor"      column="cursor"/>
         <result property="lastSyncTime" column="last_sync_time"/>
+        <result property="status"       column="status"/>
+        <result property="errorSummary" column="error_summary"/>
         <result property="createTime"   column="create_time"/>
         <result property="updateTime"   column="update_time"/>
         <result property="version"      column="version"/>
     </resultMap>
 
     <select id="selectBySource" resultMap="CrmOrgSyncCursorResult">
-        SELECT id, tenant_id, source, cursor, last_sync_time, create_time, update_time, version
+        SELECT id, tenant_id, source, `cursor`, last_sync_time, status, error_summary,
+               create_time, update_time, version
         FROM crm_org_sync_cursor
         WHERE tenant_id = #{tenantId} AND source = #{source}
     </select>
 
     <insert id="insert" parameterType="com.ruoyi.crm.tenant.domain.CrmOrgSyncCursor">
         INSERT INTO crm_org_sync_cursor (
-            id, tenant_id, source, cursor, last_sync_time, create_time, update_time, version
+            id, tenant_id, source, `cursor`, last_sync_time, status, error_summary,
+            create_time, update_time, version
         ) VALUES (
-            #{id}, #{tenantId}, #{source}, #{cursor}, #{lastSyncTime}, NOW(), NOW(), 0
+            #{id}, #{tenantId}, #{source}, #{cursor}, #{lastSyncTime}, #{status},
+            #{errorSummary}, NOW(), NOW(), 0
         )
     </insert>
 
     <update id="update" parameterType="com.ruoyi.crm.tenant.domain.CrmOrgSyncCursor">
         UPDATE crm_org_sync_cursor
-        SET cursor = #{cursor},
+        SET `cursor` = #{cursor},
             last_sync_time = #{lastSyncTime},
+            status = #{status},
+            error_summary = #{errorSummary},
             update_time = NOW(),
             version = version + 1
         WHERE id = #{id} AND tenant_id = #{tenantId} AND version = #{version}

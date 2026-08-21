@@ -1,94 +1,144 @@
-import React, { useRef, useState } from 'react';
-import { Button, message, Tag } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import { Button, Modal, Space, Tag, Tooltip, message } from 'antd';
 import { ActionType, PageContainer, ProColumns, ProTable } from '@ant-design/pro-components';
-import { SearchOutlined, UserAddOutlined } from '@ant-design/icons';
-import { listDingtalkIdentities, refreshDingTalkUser, searchUsers } from '@/services/crm/admin';
-import IdentityMapModal from './components/IdentityMapModal';
+import { SyncOutlined } from '@ant-design/icons';
+import {
+  listCrmAccessRoles,
+  listDingTalkDirectoryUsers,
+  revokeCrmAccess,
+  triggerFullSync,
+} from '@/services/crm/admin';
+import AccessGrantModal from './components/AccessGrantModal';
 
-/** 钉钉人员搜索与身份授权 */
+const splitValues = (value?: string) => (value || '').split(',').filter(Boolean);
+
+/** 企业通讯录、身份映射和角色权限的一站式 CRM 访问授权页。 */
 const UserSearch: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const actionRef = useRef<ActionType>();
-  const [keyword, setKeyword] = useState<string>('');
+  const [roles, setRoles] = useState<API.Crm.CrmRoleOption[]>([]);
+  const [selectedPerson, setSelectedPerson] = useState<API.Crm.DingTalkDirectoryUser>();
+  const [syncing, setSyncing] = useState(false);
 
-  const [mapVisible, setMapVisible] = useState(false);
-  const [mapDingtalkUserId, setMapDingtalkUserId] = useState<string>();
-  const [mapSysUserId, setMapSysUserId] = useState<number>();
+  useEffect(() => {
+    listCrmAccessRoles().then((response) => {
+      if (response.code === 200) setRoles(response.data || []);
+      else messageApi.error(response.msg || '加载 CRM 角色失败');
+    });
+  }, [messageApi]);
 
-  // 已映射的 dingtalkUserId -> sysUserId 集合
-  const [mappedIds, setMappedIds] = useState<Record<string, number>>({});
-
-  const loadMapped = async () => {
-    const resp = await listDingtalkIdentities();
-    if (resp.code === 200 && resp.data) {
-      const map: Record<string, number> = {};
-      resp.data.forEach((it) => {
-        if (it.dingtalkUserId) map[it.dingtalkUserId] = it.sysUserId || 0;
-      });
-      setMappedIds(map);
-    }
-  };
-
-  React.useEffect(() => {
-    loadMapped();
-  }, []);
-
-  const handleRefresh = async (dingtalkUserId?: string) => {
-    if (!dingtalkUserId) return;
-    const resp = await refreshDingTalkUser(dingtalkUserId);
-    if (resp.code === 200) {
-      messageApi.success('刷新成功');
+  const syncDirectory = async () => {
+    setSyncing(true);
+    try {
+      const response = await triggerFullSync();
+      if (response.code !== 200) {
+        messageApi.error(response.msg || '组织同步失败');
+        return;
+      }
+      messageApi.success(`同步完成：${response.data?.userCount || 0} 人`);
       actionRef.current?.reload();
-    } else {
-      messageApi.error(resp.msg || '刷新失败');
+    } finally {
+      setSyncing(false);
     }
   };
 
-  const columns: ProColumns<API.Crm.SysUserItem>[] = [
-    { title: '姓名', dataIndex: 'nickName', width: 120 },
-    { title: '账号', dataIndex: 'userName', width: 120 },
-    { title: '手机号', dataIndex: 'phonenumber', width: 130 },
+  const revoke = (person: API.Crm.DingTalkDirectoryUser) => {
+    Modal.confirm({
+      title: `撤销 ${person.name || '该人员'} 的 CRM 访问权？`,
+      content: '将清除其 CRM 角色和钉钉免登映射，但保留企业通讯录资料。',
+      okText: '撤销授权',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        const response = await revokeCrmAccess(person.dingtalkUserId);
+        if (response.code !== 200) {
+          messageApi.error(response.msg || '撤销失败');
+          return Promise.reject();
+        }
+        messageApi.success('已撤销 CRM 访问权');
+        actionRef.current?.reload();
+        return undefined;
+      },
+    });
+  };
+
+  const columns: ProColumns<API.Crm.DingTalkDirectoryUser>[] = [
+    { title: '姓名 / 手机 / 职位 / 组织', dataIndex: 'keyword', hideInTable: true },
+    { title: '姓名', dataIndex: 'name', width: 110, search: false },
+    { title: '手机号', dataIndex: 'mobile', width: 130, search: false },
+    { title: '职位', dataIndex: 'title', width: 130, search: false, renderText: (v) => v || '-' },
     {
-      title: '部门',
-      dataIndex: ['dept', 'deptName'],
-      width: 140,
-      render: (_, record) => record.dept?.deptName || '-',
+      title: '组织机构',
+      dataIndex: 'deptNames',
+      width: 200,
+      search: false,
+      ellipsis: true,
+      renderText: (value) => value || '-',
     },
     {
-      title: '钉钉用户 ID',
-      dataIndex: 'dingtalkUserId',
-      width: 160,
-      render: (_, record) => record.dingtalkUserId || '-',
+      title: '在职状态',
+      dataIndex: 'active',
+      width: 90,
+      search: false,
+      render: (_, record) =>
+        record.active === false ? <Tag>已停用</Tag> : <Tag color="success">在职</Tag>,
     },
     {
       title: '授权状态',
+      dataIndex: 'accessStatus',
       width: 110,
+      valueType: 'select',
+      valueEnum: {
+        GRANTED: { text: '已授权', status: 'Success' },
+        UNGRANTED: { text: '未授权', status: 'Default' },
+      },
+      render: (_, record) =>
+        record.accessGranted ? <Tag color="success">已授权</Tag> : <Tag>未授权</Tag>,
+    },
+    {
+      title: '已分配角色',
+      dataIndex: 'roleNames',
+      width: 190,
+      search: false,
       render: (_, record) => {
-        const dt = record.dingtalkUserId;
-        if (dt && mappedIds[dt] !== undefined) {
-          return <Tag color="success">已授权</Tag>;
-        }
-        return <Tag color="default">未授权</Tag>;
+        const names = (record.roleNames || '').split('、').filter(Boolean);
+        return names.length ? (
+          <Space size={[0, 4]} wrap>
+            {names.map((name) => <Tag key={name}>{name}</Tag>)}
+          </Space>
+        ) : '-';
+      },
+    },
+    {
+      title: '权限',
+      dataIndex: 'permissionCodes',
+      width: 150,
+      search: false,
+      render: (_, record) => {
+        const permissions = splitValues(record.permissionCodes);
+        if (!permissions.length) return '-';
+        return (
+          <Tooltip title={permissions.join('、')}>
+            <Tag color="blue">{permissions.length} 项权限</Tag>
+          </Tooltip>
+        );
       },
     },
     {
       title: '操作',
       valueType: 'option',
-      width: 180,
+      width: 150,
+      fixed: 'right',
       render: (_, record) => [
         <a
-          key="map"
-          onClick={() => {
-            setMapDingtalkUserId(record.dingtalkUserId);
-            setMapSysUserId(record.userId);
-            setMapVisible(true);
-          }}
+          key="grant"
+          onClick={() => record.active !== false && setSelectedPerson(record)}
+          aria-disabled={record.active === false}
         >
-          <UserAddOutlined /> 授权
+          {record.accessGranted ? '调整角色' : '分配权限'}
         </a>,
-        record.dingtalkUserId ? (
-          <a key="refresh" onClick={() => handleRefresh(record.dingtalkUserId)}>
-            刷新
+        record.accessGranted ? (
+          <a key="revoke" onClick={() => revoke(record)} style={{ color: '#ff4d4f' }}>
+            撤销
           </a>
         ) : null,
       ],
@@ -98,52 +148,43 @@ const UserSearch: React.FC = () => {
   return (
     <PageContainer>
       {contextHolder}
-      <ProTable<API.Crm.SysUserItem>
-        headerTitle="钉钉人员搜索"
+      <ProTable<API.Crm.DingTalkDirectoryUser>
+        headerTitle="企业人员 CRM 访问授权"
         actionRef={actionRef}
-        rowKey="userId"
+        rowKey="dingtalkUserId"
         columns={columns}
-        search={false}
+        scroll={{ x: 1250 }}
+        options={{ reload: true, density: true, setting: true }}
         toolBarRender={() => [
           <Button
-            key="search"
-            type="primary"
-            icon={<SearchOutlined />}
-            onClick={() => actionRef.current?.reload()}
+            key="sync"
+            icon={<SyncOutlined spin={syncing} />}
+            loading={syncing}
+            onClick={syncDirectory}
           >
-            搜索
+            同步企业通讯录
           </Button>,
         ]}
-        request={async () => {
-          if (!keyword.trim()) {
-            return { data: [], success: true, total: 0 };
+        request={async (params) => {
+          const response = await listDingTalkDirectoryUsers({
+            keyword: params.keyword,
+            accessStatus: params.accessStatus,
+          });
+          if (response.code !== 200) {
+            messageApi.error(response.msg || '查询企业人员失败');
+            return { data: [], success: false, total: 0 };
           }
-          const resp = await searchUsers(keyword.trim());
-          if (resp.code === 200) {
-            return { data: resp.data || [], success: true, total: resp.data?.length || 0 };
-          }
-          messageApi.error(resp.msg || '搜索失败');
-          return { data: [], success: false, total: 0 };
+          return { data: response.data || [], success: true, total: response.data?.length || 0 };
         }}
-        toolbar={{
-          search: {
-            placeholder: '输入姓名 / 账号 / 手机号搜索',
-            onSearch: (value) => {
-              setKeyword(value);
-              actionRef.current?.reload();
-            },
-          },
-        }}
-        options={{ reload: true }}
       />
-      <IdentityMapModal
-        visible={mapVisible}
-        initialDingtalkUserId={mapDingtalkUserId}
-        initialSysUserId={mapSysUserId}
-        onClose={() => setMapVisible(false)}
+      <AccessGrantModal
+        open={Boolean(selectedPerson)}
+        person={selectedPerson}
+        roles={roles}
+        onClose={() => setSelectedPerson(undefined)}
         onSuccess={() => {
-          setMapVisible(false);
-          loadMapped();
+          setSelectedPerson(undefined);
+          actionRef.current?.reload();
         }}
       />
     </PageContainer>

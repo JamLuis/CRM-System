@@ -1,6 +1,10 @@
 import React from 'react';
+import { useLocation } from '@umijs/max';
 import { Button, ErrorBlock, SpinLoading } from 'antd-mobile';
+import { Result, Spin } from 'antd';
 import type { H5AuthState } from './useH5Auth';
+import { useIsMobile } from './useIsMobile';
+import H5PcShell from './H5PcShell';
 
 export type H5LayoutProps = {
   state: H5AuthState;
@@ -8,6 +12,11 @@ export type H5LayoutProps = {
   onReLogin?: () => void;
   onGotoPcLogin?: () => void;
   title?: string;
+  currentUser?: API.CurrentUser;
+  /** 桌面/Pad 端渲染的完整版内容；不传则复用 children */
+  pcContent?: React.ReactNode;
+  /** 桌面端右上角操作区 */
+  pcExtra?: React.ReactNode;
   children?: React.ReactNode;
 };
 
@@ -25,18 +34,31 @@ const centerStyle: React.CSSProperties = {
  * H5 页面外壳：统一处理免登加载/待激活/失败状态，
  * ready 后渲染业务内容。
  */
+/**
+ * H5 页面外壳：统一处理免登加载/待激活/失败状态，ready 后渲染业务内容。
+ * 移动端（手机）渲染 antd-mobile 优化版；桌面/Pad 渲染 PC 完整版（功能不阉割）。
+ */
 const H5Layout: React.FC<H5LayoutProps> = ({
   state,
   errorMsg,
   onReLogin,
   onGotoPcLogin,
   title,
+  currentUser,
+  pcContent,
+  pcExtra,
   children,
 }) => {
+  const isMobile = useIsMobile();
+  const location = useLocation();
+  const activeKey = location.pathname.startsWith('/crm/h5/todos')
+    ? '/crm/h5/todos'
+    : '/crm/h5/customers';
+
   if (state === 'loading') {
     return (
       <div style={centerStyle}>
-        <SpinLoading color="primary" />
+        {isMobile ? <SpinLoading color="primary" /> : <Spin size="large" />}
         <div style={{ marginTop: 12, color: '#999' }}>正在登录…</div>
       </div>
     );
@@ -45,13 +67,26 @@ const H5Layout: React.FC<H5LayoutProps> = ({
   if (state === 'pending-activation') {
     return (
       <div style={centerStyle}>
-        <ErrorBlock
-          status="empty"
-          title="账号待激活"
-          description="您的钉钉身份尚未关联 CRM 账号，请联系管理员完成授权。"
-        />
+        {isMobile ? (
+          <ErrorBlock
+            status="empty"
+            title="账号待激活"
+            description="您的钉钉身份尚未关联 CRM 账号，请联系管理员完成授权。"
+          />
+        ) : (
+          <Result
+            status="403"
+            title="账号待激活"
+            subTitle="您的钉钉身份尚未关联 CRM 账号，请联系管理员完成授权。"
+          />
+        )}
         {onGotoPcLogin && (
-          <Button color="primary" fill="outline" onClick={onGotoPcLogin} style={{ marginTop: 16 }}>
+          <Button
+            color="primary"
+            fill="outline"
+            onClick={onGotoPcLogin}
+            style={{ marginTop: 16 }}
+          >
             使用账号密码登录
           </Button>
         )}
@@ -62,7 +97,11 @@ const H5Layout: React.FC<H5LayoutProps> = ({
   if (state === 'error') {
     return (
       <div style={centerStyle}>
-        <ErrorBlock status="default" title="登录失败" description={errorMsg || '请稍后重试'} />
+        {isMobile ? (
+          <ErrorBlock status="default" title="登录失败" description={errorMsg || '请稍后重试'} />
+        ) : (
+          <Result status="error" title="登录失败" subTitle={errorMsg || '请稍后重试'} />
+        )}
         <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
           {onReLogin && (
             <Button color="primary" onClick={onReLogin}>
@@ -76,6 +115,14 @@ const H5Layout: React.FC<H5LayoutProps> = ({
           )}
         </div>
       </div>
+    );
+  }
+
+  if (!isMobile) {
+    return (
+      <H5PcShell activeKey={activeKey} currentUser={currentUser} title={title} extra={pcExtra}>
+        {pcContent ?? children}
+      </H5PcShell>
     );
   }
 

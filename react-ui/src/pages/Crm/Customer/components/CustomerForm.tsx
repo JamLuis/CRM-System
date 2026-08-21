@@ -1,5 +1,7 @@
+import { DatePicker, Form, Input, Modal, Select } from 'antd';
 import React, { useEffect } from 'react';
-import { Form, Input, Modal, Select } from 'antd';
+import dayjs from 'dayjs';
+import { CRM_HORIZONTAL_FORM_PROPS } from '../../components/formLayout';
 import { IMPORTANCE_ENUM, LIFECYCLE_STAGE_ENUM } from '../../constants';
 
 export type CustomerFormProps = {
@@ -22,7 +24,10 @@ const CustomerForm: React.FC<CustomerFormProps> = (props) => {
   useEffect(() => {
     if (visible) {
       if (current) {
-        form.setFieldsValue({ ...current });
+        form.setFieldsValue({
+          ...current,
+          nextFollowUpAt: current.nextFollowUpAt ? dayjs(current.nextFollowUpAt) : undefined,
+        });
       } else {
         form.resetFields();
         form.setFieldsValue({ importance: '一般', lifecycleStage: '新获取' });
@@ -35,6 +40,9 @@ const CustomerForm: React.FC<CustomerFormProps> = (props) => {
     const payload: API.Crm.Customer = {
       ...current,
       ...values,
+      nextFollowUpAt: values.nextFollowUpAt
+        ? (values.nextFollowUpAt as dayjs.Dayjs).format('YYYY-MM-DD HH:mm:ss')
+        : undefined,
     };
     const ok = await onSubmit(payload);
     if (ok) {
@@ -51,7 +59,7 @@ const CustomerForm: React.FC<CustomerFormProps> = (props) => {
       width={640}
       destroyOnClose
     >
-      <Form form={form} layout="vertical">
+      <Form form={form} {...CRM_HORIZONTAL_FORM_PROPS}>
         <Form.Item
           name="name"
           label="客户名称"
@@ -65,11 +73,27 @@ const CustomerForm: React.FC<CustomerFormProps> = (props) => {
         <Form.Item name="lifecycleStage" label="生命周期阶段">
           <Select options={stageOptions} disabled={isEdit} />
         </Form.Item>
-        <Form.Item name="source" label="客户来源" rules={[{ required: true, message: '请输入客户来源' }]}>
+        <Form.Item
+          name="source"
+          label="客户来源"
+          rules={[{ required: true, message: '请输入客户来源' }]}
+        >
           <Input placeholder="如：展会、转介绍、官网" maxLength={32} />
         </Form.Item>
         <Form.Item name="industry" label="行业" rules={[{ required: true, message: '请输入行业' }]}>
           <Input placeholder="请输入行业" maxLength={32} />
+        </Form.Item>
+        <Form.Item
+          name="nextFollowUpAt"
+          label="下次跟进时间"
+          rules={[{ required: true, message: '正常客户必须设置下次跟进时间' }]}
+        >
+          <DatePicker
+            showTime={{ format: 'HH:mm' }}
+            format="YYYY-MM-DD HH:mm"
+            style={{ width: '100%' }}
+            placeholder="请选择下次跟进时间"
+          />
         </Form.Item>
         <Form.Item name="addressProvince" label="省份">
           <Input placeholder="省份" maxLength={32} />

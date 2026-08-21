@@ -14,6 +14,8 @@ import com.ruoyi.crm.customer.service.ContactService;
 import com.ruoyi.crm.permission.PermissionCode;
 import com.ruoyi.crm.permission.PermissionContext;
 import com.ruoyi.crm.permission.PermissionService;
+import com.ruoyi.crm.permission.CustomerAccessGuard;
+import com.ruoyi.crm.permission.ScopeType;
 import com.ruoyi.system.api.model.LoginUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +46,9 @@ public class ContactServiceImpl implements ContactService
 
     @Autowired
     private PermissionService permissionService;
+
+    @Autowired
+    private CustomerAccessGuard customerAccessGuard;
 
     @Autowired
     private AuditEventService auditEventService;
@@ -122,7 +127,7 @@ public class ContactServiceImpl implements ContactService
         log.info("Contact created: tenantId={}, contactId={}, customerId={}, name={}, operator={}",
                 tenantId, contact.getContactId(), contact.getCustomerId(), contact.getName(), operatorName);
 
-        return contact;
+        return applySensitiveVisibility(contact, tenantId, customer, operatorId, isAdmin);
     }
 
     @Override
@@ -207,7 +212,8 @@ public class ContactServiceImpl implements ContactService
         log.info("Contact updated: tenantId={}, contactId={}, operator={}",
                 tenantId, contact.getContactId(), operatorName);
 
-        return contactMapper.selectByContactId(tenantId, contact.getContactId());
+        CrmContact updated = contactMapper.selectByContactId(tenantId, contact.getContactId());
+        return applySensitiveVisibility(updated, tenantId, customer, operatorId, isAdmin);
     }
 
     @Override
@@ -253,7 +259,8 @@ public class ContactServiceImpl implements ContactService
         log.info("Contact deactivated: tenantId={}, contactId={}, operator={}",
                 tenantId, contactId, operatorName);
 
-        return contactMapper.selectByContactId(tenantId, contactId);
+        CrmContact deactivated = contactMapper.selectByContactId(tenantId, contactId);
+        return applySensitiveVisibility(deactivated, tenantId, customer, operatorId, isAdmin);
     }
 
     @Override
@@ -283,14 +290,23 @@ public class ContactServiceImpl implements ContactService
                 PermissionCode.CRM_CONTACT_READ);
         permissionService.check(ctx);
 
-        return contact;
+        return applySensitiveVisibility(contact, tenantId, customer, operatorId, isAdmin);
     }
 
     @Override
     public List<CrmContact> listByCustomer(Long customerId)
     {
         String tenantId = TenantContext.getTenantId();
-        return contactMapper.selectByCustomer(tenantId, customerId);
+        CrmCustomer customer = customerAccessGuard.check(customerId, PermissionCode.CRM_CONTACT_READ);
+        Long operatorId = SecurityUtils.getUserId();
+        boolean isAdmin = SecurityUtils.isAdmin(operatorId);
+        boolean sensitiveVisible = canViewSensitiveFields(tenantId, customer, operatorId, isAdmin);
+        List<CrmContact> contacts = contactMapper.selectByCustomer(tenantId, customerId);
+        for (CrmContact contact : contacts)
+        {
+            applySensitiveVisibility(contact, sensitiveVisible);
+        }
+        return contacts;
     }
 
     // ==================== Private helpers ====================
@@ -357,6 +373,76 @@ public class ContactServiceImpl implements ContactService
             return wechatId;
         }
         return wechatId.substring(0, 2) + "***" + wechatId.substring(wechatId.length() - 2);
+    }
+
+    /**
+     * 联系人敏感信息只对 CRM 管理员、客户主负责人和协同处理人展示明文。
+     * 其他具备部门数据范围等只读权限的账号，只返回脱敏值，避免前端绕过。
+     */
+    private CrmContact applySensitiveVisibility(CrmContact contact, String tenantId,
+                                                CrmCustomer customer, Long operatorId,
+                                                boolean isAdmin)
+    {
+        return applySensitiveVisibility(contact,
+                canViewSensitiveFields(tenantId, customer, operatorId, isAdmin));
+    }
+
+    CrmContact applySensitiveVisibility(CrmContact contact, boolean sensitiveVisible)
+    {
+        if (contact == null || sensitiveVisible)
+        {
+            return contact;
+        }
+
+        // 兼容早期导入数据：脱敏列缺失时先由明文即时生成，再清除响应中的明文。
+        if (contact.getPhoneMasked() == null || contact.getPhoneMasked().isEmpty())
+        {
+            contact.setPhoneMasked(maskPhone(contact.getPhoneNumber()));
+        }
+        if (contact.getEmailMasked() == null || contact.getEmailMasked().isEmpty())
+        {
+            contact.setEmailMasked(maskEmail(contact.getEmail()));
+        }
+        if (contact.getWechatMasked() == null || contact.getWechatMasked().isEmpty())
+        {
+            contact.setWechatMasked(maskWechat(contact.getWechatId()));
+        }
+        contact.setPhoneNumber(null);
+        contact.setEmail(null);
+        contact.setWechatId(null);
+        return contact;
+    }
+
+    private boolean canViewSensitiveFields(String tenantId, CrmCustomer customer,
+                                           Long operatorId, boolean isAdmin)
+    {
+        if (isSensitiveVisible(customer, operatorId, isAdmin, null))
+        {
+            return true;
+        }
+
+        return isSensitiveVisible(customer, operatorId, false,
+                permissionService.getScopeType(tenantId, operatorId));
+    }
+
+    boolean isSensitiveVisible(CrmCustomer customer, Long operatorId,
+                               boolean isAdmin, ScopeType scopeType)
+    {
+        if (isAdmin || operatorId == null || customer == null)
+        {
+            return isAdmin;
+        }
+        PermissionContext membership = new PermissionContext();
+        membership.setOperatorId(operatorId);
+        membership.setPrimaryOwnerId(customer.getPrimaryOwnerId());
+        membership.setCollaboratorIds(customer.getCollaboratorIds());
+        if (membership.isPrimaryOwner() || membership.isCollaborator())
+        {
+            return true;
+        }
+
+        // 非 1 号系统管理员也可通过 CRM 角色的 ALL 数据范围成为 CRM 管理员。
+        return scopeType == ScopeType.ALL;
     }
 
     private PermissionContext buildPermissionContext(CrmCustomer customer, Long operatorId,

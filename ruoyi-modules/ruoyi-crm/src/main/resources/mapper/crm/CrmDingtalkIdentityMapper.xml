@@ -52,4 +52,9 @@
         WHERE id = #{id} AND tenant_id = #{tenantId} AND version = #{version}
     </update>
 
+    <delete id="deleteByDingtalkUserId">
+        DELETE FROM crm_dingtalk_identity
+        WHERE tenant_id = #{tenantId} AND dingtalk_user_id = #{dingtalkUserId}
+    </delete>
+
 </mapper>

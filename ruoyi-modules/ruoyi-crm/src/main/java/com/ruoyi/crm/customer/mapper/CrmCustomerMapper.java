@@ -42,10 +42,23 @@ public interface CrmCustomerMapper
      */
     List<CrmCustomer> selectList(@Param("tenantId") String tenantId, @Param("customer") CrmCustomer query);
 
+    List<CrmCustomer> selectVisibleList(@Param("tenantId") String tenantId,
+                                        @Param("customer") CrmCustomer query,
+                                        @Param("scopeType") String scopeType,
+                                        @Param("operatorId") Long operatorId,
+                                        @Param("operatorDeptId") Long operatorDeptId);
+
     /**
      * 插入客户
      */
     int insert(CrmCustomer customer);
+
+    /**
+     * 重新导入时仅补充历史来源字段，不覆盖 CRM 内已维护的负责人和业务资料。
+     */
+    int updateImportedMetadata(@Param("tenantId") String tenantId,
+                               @Param("customerId") Long customerId,
+                               @Param("customer") CrmCustomer customer);
 
     /**
      * 更新客户（乐观锁）
@@ -84,6 +97,10 @@ public interface CrmCustomerMapper
                              @Param("followUpStatus") String followUpStatus,
                              @Param("updateBy") String updateBy,
                              @Param("version") Integer version);
+
+    /** 导入历史跟进后，按实际记录批量刷新客户最近有效跟进时间。 */
+    int refreshLastEffectiveFollowUpAt(@Param("tenantId") String tenantId,
+                                       @Param("updateBy") String updateBy);
 
     /**
      * 按跟进状态查询客户ID列表（批量重算用）

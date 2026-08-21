@@ -1,21 +1,17 @@
-import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { clearSessionToken } from '@/access';
+import { PageEnum } from '@/enums/pagesEnums';
+import { setRemoteMenu } from '@/services/session';
+import { logout } from '@/services/system/auth';
+import { LogoutOutlined } from '@ant-design/icons';
+import { setAlpha } from '@ant-design/pro-components';
 import { useEmotionCss } from '@ant-design/use-emotion-css';
 import { history, useModel } from '@umijs/max';
 import { Avatar, Spin } from 'antd';
-import { setAlpha } from '@ant-design/pro-components';
 import { stringify } from 'querystring';
 import type { MenuInfo } from 'rc-menu/lib/interface';
 import React, { useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import HeaderDropdown from '../HeaderDropdown';
-import { setRemoteMenu } from '@/services/session';
-import { PageEnum } from '@/enums/pagesEnums';
-import { clearSessionToken } from '@/access';
-import { logout } from '@/services/system/auth';
-
-export type GlobalHeaderRightProps = {
-  menu?: boolean;
-};
 
 const Name = () => {
   const { initialState } = useModel('@@initialState');
@@ -56,7 +52,7 @@ const AvatarLogo = () => {
   return <Avatar size="small" className={avatarClassName} src={currentUser?.avatar} alt="avatar" />;
 };
 
-const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
+const AvatarDropdown: React.FC = () => {
   /**
    * 退出登录，并且将当前的 url 保存
    */
@@ -105,7 +101,6 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
         loginOut();
         return;
       }
-      history.push(`/account/${key}`);
     },
     [setInitialState],
   );
@@ -133,23 +128,6 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
   }
 
   const menuItems = [
-    ...(menu
-      ? [
-          {
-            key: 'center',
-            icon: <UserOutlined />,
-            label: '个人中心',
-          },
-          {
-            key: 'settings',
-            icon: <SettingOutlined />,
-            label: '个人设置',
-          },
-          {
-            type: 'divider' as const,
-          },
-        ]
-      : []),
     {
       key: 'logout',
       icon: <LogoutOutlined />,

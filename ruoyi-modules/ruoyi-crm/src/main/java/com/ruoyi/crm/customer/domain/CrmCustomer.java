@@ -1,6 +1,8 @@
 package com.ruoyi.crm.customer.domain;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.ruoyi.crm.common.domain.CrmBaseEntity;
 
 import java.util.Date;
@@ -18,6 +20,7 @@ public class CrmCustomer extends CrmBaseEntity
     private static final long serialVersionUID = 1L;
 
     /** 客户ID（雪花） */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long customerId;
     /** 客户编码（系统生成，不可修改） */
     private String customerCode;
@@ -37,6 +40,14 @@ public class CrmCustomer extends CrmBaseEntity
     private String addressDetail;
     /** 客户标签（JSON数组） */
     private String tags;
+    /** 跟进力度（导入源字段） */
+    private String followUpIntensity;
+    /** 导入源客户跟进状态 */
+    private String sourceFollowUpStatus;
+    /** 客户群 */
+    private String customerGroup;
+    /** 导入源客户状态 */
+    private String sourceCustomerStatus;
     /** 生命周期阶段 */
     private String lifecycleStage;
     /** 经营状态(正常/暂停跟进/已失效/已归档) */
@@ -52,8 +63,20 @@ public class CrmCustomer extends CrmBaseEntity
     private String importance;
     /** 客户来源 */
     private String source;
+    /** 介绍客户名称 */
+    private String referredCustomerName;
+    /** 客户来源（其他） */
+    private String sourceOther;
     /** 行业 */
     private String industry;
+    /** 客户行业（其他） */
+    private String industryOther;
+    /** 导入源创建人 */
+    private String sourceCreatorName;
+    /** 导入源负责人 */
+    private String sourceOwnerName;
+    /** 导入源协同人 */
+    private String sourceCollaboratorNames;
     /** 备注 */
     private String remark;
     /** 当前主负责人用户ID */
@@ -75,11 +98,27 @@ public class CrmCustomer extends CrmBaseEntity
     /** 归档时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date archivedAt;
+    /** 掉保时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date droppedProtectionAt;
     /** 跟进状态(NORMAL/INSUFFICIENT/SEVERE_INSUFFICIENT/NOT_ASSESSED) */
     private String followUpStatus;
     /** 跟进状态计算时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date followUpStatusCalculatedAt;
+    /** 跟进记录数（列表查询派生字段） */
+    private Integer followUpRecordCount;
+    /** 当前协同人姓名（列表查询派生字段） */
+    private String collaboratorNames;
+    /** 最近动态时间（列表查询派生字段） */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date latestActivityAt;
+    /** 最近拜访时间（列表查询派生字段） */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date latestVisitAt;
+    /** 最近分配时间（列表查询派生字段） */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date latestAssignmentAt;
 
     public Long getCustomerId()
     {
@@ -181,6 +220,46 @@ public class CrmCustomer extends CrmBaseEntity
         this.tags = tags;
     }
 
+    public String getFollowUpIntensity()
+    {
+        return followUpIntensity;
+    }
+
+    public void setFollowUpIntensity(String followUpIntensity)
+    {
+        this.followUpIntensity = followUpIntensity;
+    }
+
+    public String getSourceFollowUpStatus()
+    {
+        return sourceFollowUpStatus;
+    }
+
+    public void setSourceFollowUpStatus(String sourceFollowUpStatus)
+    {
+        this.sourceFollowUpStatus = sourceFollowUpStatus;
+    }
+
+    public String getCustomerGroup()
+    {
+        return customerGroup;
+    }
+
+    public void setCustomerGroup(String customerGroup)
+    {
+        this.customerGroup = customerGroup;
+    }
+
+    public String getSourceCustomerStatus()
+    {
+        return sourceCustomerStatus;
+    }
+
+    public void setSourceCustomerStatus(String sourceCustomerStatus)
+    {
+        this.sourceCustomerStatus = sourceCustomerStatus;
+    }
+
     public String getLifecycleStage()
     {
         return lifecycleStage;
@@ -251,6 +330,26 @@ public class CrmCustomer extends CrmBaseEntity
         this.source = source;
     }
 
+    public String getReferredCustomerName()
+    {
+        return referredCustomerName;
+    }
+
+    public void setReferredCustomerName(String referredCustomerName)
+    {
+        this.referredCustomerName = referredCustomerName;
+    }
+
+    public String getSourceOther()
+    {
+        return sourceOther;
+    }
+
+    public void setSourceOther(String sourceOther)
+    {
+        this.sourceOther = sourceOther;
+    }
+
     public String getIndustry()
     {
         return industry;
@@ -259,6 +358,46 @@ public class CrmCustomer extends CrmBaseEntity
     public void setIndustry(String industry)
     {
         this.industry = industry;
+    }
+
+    public String getIndustryOther()
+    {
+        return industryOther;
+    }
+
+    public void setIndustryOther(String industryOther)
+    {
+        this.industryOther = industryOther;
+    }
+
+    public String getSourceCreatorName()
+    {
+        return sourceCreatorName;
+    }
+
+    public void setSourceCreatorName(String sourceCreatorName)
+    {
+        this.sourceCreatorName = sourceCreatorName;
+    }
+
+    public String getSourceOwnerName()
+    {
+        return sourceOwnerName;
+    }
+
+    public void setSourceOwnerName(String sourceOwnerName)
+    {
+        this.sourceOwnerName = sourceOwnerName;
+    }
+
+    public String getSourceCollaboratorNames()
+    {
+        return sourceCollaboratorNames;
+    }
+
+    public void setSourceCollaboratorNames(String sourceCollaboratorNames)
+    {
+        this.sourceCollaboratorNames = sourceCollaboratorNames;
     }
 
     public String getRemark()
@@ -351,6 +490,16 @@ public class CrmCustomer extends CrmBaseEntity
         this.archivedAt = archivedAt;
     }
 
+    public Date getDroppedProtectionAt()
+    {
+        return droppedProtectionAt;
+    }
+
+    public void setDroppedProtectionAt(Date droppedProtectionAt)
+    {
+        this.droppedProtectionAt = droppedProtectionAt;
+    }
+
     public String getFollowUpStatus()
     {
         return followUpStatus;
@@ -369,5 +518,55 @@ public class CrmCustomer extends CrmBaseEntity
     public void setFollowUpStatusCalculatedAt(Date followUpStatusCalculatedAt)
     {
         this.followUpStatusCalculatedAt = followUpStatusCalculatedAt;
+    }
+
+    public Integer getFollowUpRecordCount()
+    {
+        return followUpRecordCount;
+    }
+
+    public void setFollowUpRecordCount(Integer followUpRecordCount)
+    {
+        this.followUpRecordCount = followUpRecordCount;
+    }
+
+    public String getCollaboratorNames()
+    {
+        return collaboratorNames;
+    }
+
+    public void setCollaboratorNames(String collaboratorNames)
+    {
+        this.collaboratorNames = collaboratorNames;
+    }
+
+    public Date getLatestActivityAt()
+    {
+        return latestActivityAt;
+    }
+
+    public void setLatestActivityAt(Date latestActivityAt)
+    {
+        this.latestActivityAt = latestActivityAt;
+    }
+
+    public Date getLatestVisitAt()
+    {
+        return latestVisitAt;
+    }
+
+    public void setLatestVisitAt(Date latestVisitAt)
+    {
+        this.latestVisitAt = latestVisitAt;
+    }
+
+    public Date getLatestAssignmentAt()
+    {
+        return latestAssignmentAt;
+    }
+
+    public void setLatestAssignmentAt(Date latestAssignmentAt)
+    {
+        this.latestAssignmentAt = latestAssignmentAt;
     }
 }

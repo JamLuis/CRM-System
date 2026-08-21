@@ -7,6 +7,9 @@ import com.ruoyi.crm.common.tenant.TenantContext;
 import com.ruoyi.crm.followup.domain.AttachmentStatus;
 import com.ruoyi.crm.followup.domain.CrmAttachment;
 import com.ruoyi.crm.followup.mapper.CrmAttachmentMapper;
+import com.ruoyi.crm.followup.mapper.CrmFollowUpMapper;
+import com.ruoyi.crm.followup.service.MinioStorageService;
+import com.ruoyi.crm.permission.CustomerAccessGuard;
 import com.ruoyi.system.api.model.LoginUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +33,9 @@ class AttachmentServiceImplTest
     private CrmAttachmentMapper attachmentMapper;
     private IdGenerator idGenerator;
     private AuditEventService auditEventService;
+    private CrmFollowUpMapper followUpMapper;
+    private CustomerAccessGuard customerAccessGuard;
+    private MinioStorageService minioStorageService;
     private AttachmentServiceImpl attachmentService;
     private MockedStatic<SecurityUtils> securityUtilsMock;
 
@@ -39,6 +45,9 @@ class AttachmentServiceImplTest
         attachmentMapper = Mockito.mock(CrmAttachmentMapper.class);
         idGenerator = Mockito.mock(IdGenerator.class);
         auditEventService = Mockito.mock(AuditEventService.class);
+        followUpMapper = Mockito.mock(CrmFollowUpMapper.class);
+        customerAccessGuard = Mockito.mock(CustomerAccessGuard.class);
+        minioStorageService = Mockito.mock(MinioStorageService.class);
 
         when(idGenerator.nextId()).thenReturn(5001L);
 
@@ -55,6 +64,9 @@ class AttachmentServiceImplTest
         setField(attachmentService, "attachmentMapper", attachmentMapper);
         setField(attachmentService, "idGenerator", idGenerator);
         setField(attachmentService, "auditEventService", auditEventService);
+        setField(attachmentService, "followUpMapper", followUpMapper);
+        setField(attachmentService, "customerAccessGuard", customerAccessGuard);
+        setField(attachmentService, "minioStorageService", minioStorageService);
     }
 
     @AfterEach
@@ -71,14 +83,15 @@ class AttachmentServiceImplTest
         TenantContext.setTenantId("test-tenant");
 
         CrmAttachment attachment = new CrmAttachment();
-        attachment.setOwnerType("FOLLOW_UP");
-        attachment.setOwnerId(2001L);
+        attachment.setOwnerType("CUSTOMER");
+        attachment.setOwnerId(1001L);
         attachment.setFileName("photo.jpg");
         attachment.setContentType("image/jpeg");
         attachment.setSizeBytes(102400L);
         attachment.setStorageKey("uploads/2024/photo.jpg");
 
         when(attachmentMapper.insert(any(CrmAttachment.class))).thenReturn(1);
+        when(minioStorageService.createUploadUrl(anyString())).thenReturn("https://minio.test/upload");
 
         CrmAttachment result = attachmentService.createUpload(attachment);
 
@@ -102,6 +115,9 @@ class AttachmentServiceImplTest
         CrmAttachment existing = new CrmAttachment();
         existing.setAttachmentId(5001L);
         existing.setStatus(AttachmentStatus.PENDING_SCAN.name());
+        existing.setOwnerType("CUSTOMER");
+        existing.setOwnerId(1001L);
+        existing.setStorageKey("test/object");
 
         CrmAttachment confirmed = new CrmAttachment();
         confirmed.setAttachmentId(5001L);
@@ -138,6 +154,8 @@ class AttachmentServiceImplTest
         CrmAttachment existing = new CrmAttachment();
         existing.setAttachmentId(5001L);
         existing.setStatus(AttachmentStatus.AVAILABLE.name());
+        existing.setOwnerType("CUSTOMER");
+        existing.setOwnerId(1001L);
 
         when(attachmentMapper.selectByAttachmentId("test-tenant", 5001L)).thenReturn(existing);
 
@@ -153,6 +171,8 @@ class AttachmentServiceImplTest
         CrmAttachment existing = new CrmAttachment();
         existing.setAttachmentId(5001L);
         existing.setStatus(AttachmentStatus.PENDING_SCAN.name());
+        existing.setOwnerType("CUSTOMER");
+        existing.setOwnerId(1001L);
 
         when(attachmentMapper.selectByAttachmentId("test-tenant", 5001L)).thenReturn(existing);
 
@@ -170,13 +190,13 @@ class AttachmentServiceImplTest
         CrmAttachment a2 = new CrmAttachment();
         a2.setAttachmentId(5002L);
 
-        when(attachmentMapper.selectByOwner("test-tenant", "FOLLOW_UP", 2001L))
+        when(attachmentMapper.selectByOwner("test-tenant", "CUSTOMER", 1001L))
                 .thenReturn(Arrays.asList(a1, a2));
 
-        List<CrmAttachment> result = attachmentService.listByOwner("FOLLOW_UP", 2001L);
+        List<CrmAttachment> result = attachmentService.listByOwner("CUSTOMER", 1001L);
 
         assertEquals(2, result.size());
-        verify(attachmentMapper).selectByOwner("test-tenant", "FOLLOW_UP", 2001L);
+        verify(attachmentMapper).selectByOwner("test-tenant", "CUSTOMER", 1001L);
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception

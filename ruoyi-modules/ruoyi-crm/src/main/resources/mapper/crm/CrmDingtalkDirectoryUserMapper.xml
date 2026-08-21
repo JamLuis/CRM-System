@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.crm.tenant.mapper.CrmDingtalkDirectoryUserMapper">
+
+    <resultMap id="DirectoryUserResult" type="com.ruoyi.crm.tenant.domain.CrmDingtalkDirectoryUser">
+        <result property="id" column="id"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="dingtalkUserId" column="dingtalk_user_id"/>
+        <result property="unionId" column="union_id"/>
+        <result property="name" column="name"/>
+        <result property="mobile" column="mobile"/>
+        <result property="email" column="email"/>
+        <result property="title" column="title"/>
+        <result property="deptIds" column="dept_ids"/>
+        <result property="deptNames" column="dept_names"/>
+        <result property="sysDeptId" column="sys_dept_id"/>
+        <result property="active" column="active"/>
+        <result property="lastSyncTime" column="last_sync_time"/>
+        <result property="accessGranted" column="access_granted"/>
+        <result property="sysUserId" column="sys_user_id"/>
+        <result property="roleIds" column="role_ids"/>
+        <result property="roleNames" column="role_names"/>
+        <result property="permissionCodes" column="permission_codes"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <sql id="directoryColumns">
+        id, tenant_id, dingtalk_user_id, union_id, name, mobile, email, title,
+        dept_ids, dept_names, sys_dept_id, active, last_sync_time, create_time, update_time, version
+    </sql>
+
+    <select id="selectByDingtalkUserId" resultMap="DirectoryUserResult">
+        SELECT <include refid="directoryColumns"/>
+        FROM crm_dingtalk_directory_user
+        WHERE tenant_id = #{tenantId} AND dingtalk_user_id = #{dingtalkUserId}
+    </select>
+
+    <select id="selectAuthorizationList" resultMap="DirectoryUserResult">
+        SELECT du.id, du.tenant_id, du.dingtalk_user_id, du.union_id, du.name,
+               du.mobile, du.email, du.title, du.dept_ids, du.dept_names, du.sys_dept_id,
+               du.active, du.last_sync_time, du.create_time, du.update_time, du.version,
+               i.sys_user_id,
+               CASE WHEN SUM(CASE WHEN m.perms = 'crm:access' THEN 1 ELSE 0 END) > 0
+                    THEN TRUE ELSE FALSE END AS access_granted,
+               GROUP_CONCAT(DISTINCT r.role_id ORDER BY r.role_sort) AS role_ids,
+               GROUP_CONCAT(DISTINCT r.role_name ORDER BY r.role_sort SEPARATOR '、') AS role_names,
+               GROUP_CONCAT(DISTINCT CASE WHEN m.perms LIKE 'crm:%' THEN m.perms END
+                            ORDER BY m.perms SEPARATOR ',') AS permission_codes
+        FROM crm_dingtalk_directory_user du
+        LEFT JOIN crm_dingtalk_identity i
+               ON i.tenant_id = du.tenant_id AND i.dingtalk_user_id = du.dingtalk_user_id
+        LEFT JOIN sys_user_role ur ON ur.user_id = i.sys_user_id
+        LEFT JOIN sys_role r ON r.role_id = ur.role_id AND r.del_flag = '0' AND r.status = '0'
+        LEFT JOIN sys_role_menu rm ON rm.role_id = r.role_id
+        LEFT JOIN sys_menu m ON m.menu_id = rm.menu_id AND m.status = '0'
+        WHERE du.tenant_id = #{tenantId}
+        <if test="keyword != null and keyword != ''">
+            AND (du.name LIKE CONCAT('%', #{keyword}, '%')
+              OR du.mobile LIKE CONCAT('%', #{keyword}, '%')
+              OR du.title LIKE CONCAT('%', #{keyword}, '%')
+              OR du.dept_names LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        GROUP BY du.id, du.tenant_id, du.dingtalk_user_id, du.union_id, du.name,
+                 du.mobile, du.email, du.title, du.dept_ids, du.dept_names, du.sys_dept_id,
+                 du.active, du.last_sync_time, du.create_time, du.update_time, du.version,
+                 i.sys_user_id
+        <if test="accessStatus == 'GRANTED'">
+            HAVING access_granted = TRUE
+        </if>
+        <if test="accessStatus == 'UNGRANTED'">
+            HAVING access_granted = FALSE
+        </if>
+        ORDER BY du.active DESC, du.dept_names, du.name
+    </select>
+
+    <insert id="upsert" parameterType="com.ruoyi.crm.tenant.domain.CrmDingtalkDirectoryUser">
+        INSERT INTO crm_dingtalk_directory_user (
+            id, tenant_id, dingtalk_user_id, union_id, name, mobile, email, title,
+            dept_ids, dept_names, sys_dept_id, active, last_sync_time, create_time, update_time, version
+        ) VALUES (
+            #{id}, #{tenantId}, #{dingtalkUserId}, #{unionId}, #{name}, #{mobile}, #{email}, #{title},
+            #{deptIds}, #{deptNames}, #{sysDeptId}, #{active}, #{lastSyncTime}, NOW(), NOW(), 0
+        )
+        ON DUPLICATE KEY UPDATE
+            union_id = VALUES(union_id),
+            name = VALUES(name),
+            mobile = VALUES(mobile),
+            email = VALUES(email),
+            title = VALUES(title),
+            dept_ids = VALUES(dept_ids),
+            dept_names = VALUES(dept_names),
+            sys_dept_id = VALUES(sys_dept_id),
+            active = VALUES(active),
+            last_sync_time = VALUES(last_sync_time),
+            update_time = NOW(),
+            version = version + 1
+    </insert>
+
+    <select id="selectAssignableRoles" resultType="com.ruoyi.system.api.domain.SysRole">
+        SELECT DISTINCT r.role_id AS roleId, r.role_name AS roleName,
+                        r.role_key AS roleKey, r.role_sort AS roleSort
+        FROM sys_role r
+        JOIN sys_role_menu rm ON rm.role_id = r.role_id
+        JOIN sys_menu m ON m.menu_id = rm.menu_id
+        WHERE r.status = '0' AND r.del_flag = '0' AND m.perms = 'crm:access'
+        ORDER BY r.role_sort
+    </select>
+
+    <select id="countGrantedBySysUserId" resultType="int">
+        SELECT COUNT(DISTINCT i.id)
+        FROM crm_dingtalk_identity i
+        JOIN sys_user_role ur ON ur.user_id = i.sys_user_id
+        JOIN sys_role_menu rm ON rm.role_id = ur.role_id
+        JOIN sys_menu m ON m.menu_id = rm.menu_id
+        WHERE i.tenant_id = #{tenantId}
+          AND i.sys_user_id = #{sysUserId}
+          AND m.perms = 'crm:access'
+          AND m.status = '0'
+    </select>
+</mapper>

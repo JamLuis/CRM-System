@@ -53,6 +53,29 @@
         LIMIT #{limit}
     </select>
 
+    <update id="claimForDelivery">
+        UPDATE crm_outbox
+        SET status = 'SENDING',
+            update_time = NOW(),
+            version = version + 1
+        WHERE id = #{id}
+          AND tenant_id = #{tenantId}
+          AND version = #{version}
+          AND status IN ('PENDING', 'FAILED')
+          AND (next_retry_time IS NULL OR next_retry_time &lt;= NOW())
+    </update>
+
+    <update id="recoverStaleSending">
+        UPDATE crm_outbox
+        SET status = 'FAILED',
+            next_retry_time = NOW(),
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND status = 'SENDING'
+          AND update_time &lt; DATE_SUB(NOW(), INTERVAL #{staleSeconds} SECOND)
+    </update>
+
     <update id="updateStatus">
         UPDATE crm_outbox
         SET status = #{status},

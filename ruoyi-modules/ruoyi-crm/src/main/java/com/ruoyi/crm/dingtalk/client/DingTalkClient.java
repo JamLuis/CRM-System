@@ -299,6 +299,38 @@ public class DingTalkClient
         return false;
     }
 
+    /** 发送钉钉企业内部工作通知（文本消息）。 */
+    public Long sendWorkNotification(String dingtalkUserId, String content)
+    {
+        String token = getAccessToken();
+        String url = properties.getApiBaseUrl() + properties.getSendWorkNotificationPath()
+                + "?access_token=" + token;
+
+        Map<String, Object> textBody = new HashMap<>();
+        textBody.put("content", content);
+        Map<String, Object> msg = new HashMap<>();
+        msg.put("msgtype", "text");
+        msg.put("text", textBody);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("agent_id", Long.valueOf(properties.getAgentId()));
+        body.put("userid_list", dingtalkUserId);
+        body.put("to_all_user", false);
+        body.put("msg", msg);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> resp = restTemplate.postForObject(
+                url, new HttpEntity<>(body, headers), Map.class);
+        if (resp == null || !Integer.valueOf(0).equals(resp.get("errcode")))
+        {
+            String errmsg = resp != null ? String.valueOf(resp.get("errmsg")) : "unknown";
+            throw new RuntimeException("DingTalk asyncsend failed: " + errmsg);
+        }
+        return toLong(resp.get("task_id"));
+    }
+
     private Long toLong(Object obj)
     {
         if (obj == null)

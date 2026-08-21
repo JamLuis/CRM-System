@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Form, message, Modal, Select, Tag } from 'antd';
-import { ActionType, PageContainer, ProColumns, ProTable } from '@ant-design/pro-components';
-import { EditOutlined } from '@ant-design/icons';
 import { listRoleScopes, saveRoleScope } from '@/services/crm/admin';
 import { getRoleList } from '@/services/system/role';
+import { EditOutlined } from '@ant-design/icons';
+import { ActionType, PageContainer, ProColumns, ProTable } from '@ant-design/pro-components';
+import { Form, message, Modal, Select, Tag } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import { CRM_HORIZONTAL_FORM_PROPS } from '../components/formLayout';
 
 /** CRM 数据范围类型 */
 const SCOPE_TYPE_OPTIONS = [
@@ -142,12 +143,8 @@ const RoleScope: React.FC = () => {
         confirmLoading={submitting}
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="roleId"
-            label="角色"
-            rules={[{ required: true, message: '请选择角色' }]}
-          >
+        <Form form={form} {...CRM_HORIZONTAL_FORM_PROPS}>
+          <Form.Item name="roleId" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
             <Select
               placeholder="选择 CRM 角色"
               options={roles.map((r) => ({

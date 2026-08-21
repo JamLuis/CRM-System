@@ -1,18 +1,14 @@
 import Footer from '@/components/Footer';
 import RightContent from '@/components/RightContent';
-import { LinkOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
-import { SettingDrawer } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig } from '@umijs/max';
-import { history, Link } from '@umijs/max';
+import { history } from '@umijs/max';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 import { clearSessionToken, getAccessToken, getRefreshToken, getTokenExpireTime } from './access';
 import { getRemoteMenu, getRoutersInfo, getUserInfo, patchRouteWithRemoteMenus, setRemoteMenu } from './services/session';
 import { PageEnum } from './enums/pagesEnums';
 
-
-const isDev = process.env.NODE_ENV === 'development';
 
 /** H5（钉钉内）页面路径前缀：自行完成免登，不走 PC 登录重定向 */
 const H5_PATH_PREFIX = '/crm/h5';
@@ -34,8 +30,7 @@ export async function getInitialState(): Promise<{
         skipErrorHandler: true,
       });
       if (response.user.avatar === '') {
-        response.user.avatar =
-          'https://gw.alipayobjects.com/zos/rmsportal/BiazfanxmamNRoxxVxka.png';
+        response.user.avatar = '/logo.svg';
       }
       return {
         ...response.user,
@@ -66,7 +61,7 @@ export async function getInitialState(): Promise<{
 }
 
 // ProLayout 支持的api https://procomponents.ant.design/components/layout
-export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
+export const layout: RunTimeLayoutConfig = ({ initialState }) => {
   return {
     rightContentRender: () => <RightContent />,
     waterMarkProps: {
@@ -85,10 +80,6 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         // console.log('get menus')
         // initialState.currentUser 中包含了所有用户信息
         // console.log('get routers')
-        // setInitialState((preInitialState) => ({
-        //   ...preInitialState,
-        //   menus,
-        // }));
         return getRemoteMenu();
       },
     },
@@ -104,64 +95,53 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         history.push(PageEnum.LOGIN);
       }
     },
-    layoutBgImgList: [
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/D2LWSqNny4sAAAAAAAAAAAAAFl94AQBr',
-        left: 85,
-        bottom: 100,
-        height: '303px',
-      },
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/C2TWRpJpiC0AAAAAAAAAAAAAFl94AQBr',
-        bottom: -68,
-        right: -45,
-        height: '303px',
-      },
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/F6vSTbj8KpYAAAAAAAAAAAAAFl94AQBr',
-        bottom: 0,
-        left: 0,
-        width: '331px',
-      },
-    ],
-    links: isDev
-      ? [
-        <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
-          <LinkOutlined />
-          <span>OpenAPI 文档</span>
-        </Link>,
-      ]
-      : [],
     menuHeaderRender: undefined,
     // 自定义 403 页面
     // unAccessible: <div>unAccessible</div>,
-    // 增加一个 loading 的状态
-    childrenRender: (children) => {
-      // if (initialState?.loading) return <PageLoading />;
-      return (
-        <>
-          {children}
-          <SettingDrawer
-            disableUrlParams
-            enableDarkTheme
-            settings={initialState?.settings}
-            onSettingChange={(settings) => {
-              setInitialState((preInitialState) => ({
-                ...preInitialState,
-                settings,
-              }));
-            }}
-          />
-        </>
-      );
-    },
     ...initialState?.settings,
   };
 };
 
+/**
+ * antd v5 运行时主题：统一 CRM 视觉基调（主色 / 圆角 / 表格 / 卡片）
+ */
+export function antd(memo: any) {
+  memo.theme = {
+    token: {
+      colorPrimary: '#1677ff',
+      colorInfo: '#1677ff',
+      colorLink: '#1677ff',
+      borderRadius: 6,
+      colorBgLayout: '#f2f4f8',
+      colorTextBase: '#0f172a',
+    },
+    components: {
+      Card: {
+        borderRadiusLG: 10,
+      },
+      Table: {
+        headerBg: '#f7f9fc',
+        headerColor: '#475569',
+        headerSplitColor: 'transparent',
+        rowHoverBg: '#f5f9ff',
+      },
+      Layout: {
+        headerBg: '#ffffff',
+        siderBg: '#ffffff',
+        bodyBg: 'transparent',
+      },
+    },
+  };
+  return memo;
+}
+
 export async function onRouteChange({ clientRoutes, location }) {
   const menus = getRemoteMenu();
  // console.log('onRouteChange', clientRoutes, location, menus);
+  // H5（钉钉内）页面自行免登，不检查远程菜单、不触发刷新
+  if (location.pathname.startsWith(H5_PATH_PREFIX)) {
+    return;
+  }
   if(menus === null && location.pathname !== PageEnum.LOGIN) {
     console.log('refresh')
     history.go(0);
@@ -182,11 +162,18 @@ export function render(oldRender: () => void) {
   // console.log('render get routers', oldRender)
   const token = getAccessToken();
   if(!token || token?.length === 0) {
+    // 无 token 时设置空菜单，避免 onRouteChange 因 menus===null 触发无限刷新
+    setRemoteMenu([]);
     oldRender();
     return;
   }
   getRoutersInfo().then(res => {
     setRemoteMenu(res);
+    oldRender()
+  }).catch(() => {
+    // 获取路由信息失败（如 token 过期、后端不可用），
+    // 仍需正常渲染，否则页面会永远卡在 loading
+    setRemoteMenu([]);
     oldRender()
   });
 }

@@ -1,7 +1,7 @@
 import { request } from '@umijs/max';
 
 /** 查询客户的跟进记录列表 */
-export async function getFollowUpsByCustomer(customerId: number, options?: Record<string, any>) {
+export async function getFollowUpsByCustomer(customerId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.FollowUp[]>>(
     `/api/crm/v1/follow-ups/by-customer/${customerId}`,
     { method: 'GET', ...(options || {}) },
@@ -9,7 +9,7 @@ export async function getFollowUpsByCustomer(customerId: number, options?: Recor
 }
 
 /** 查询跟进详情 */
-export async function getFollowUp(followUpId: number, options?: Record<string, any>) {
+export async function getFollowUp(followUpId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.FollowUp>>(`/api/crm/v1/follow-ups/${followUpId}`, {
     method: 'GET',
     ...(options || {}),
@@ -31,7 +31,7 @@ export async function createFollowUp(
 
 /** 更正跟进（原记录不可变，生成更正记录） */
 export async function correctFollowUp(
-  followUpId: number,
+  followUpId: API.Crm.Id,
   data: API.Crm.FollowUpCorrectRequest,
   options?: Record<string, any>,
 ) {
@@ -45,7 +45,7 @@ export async function correctFollowUp(
 
 /** 作废跟进 */
 export async function voidFollowUp(
-  followUpId: number,
+  followUpId: API.Crm.Id,
   data: API.Crm.FollowUpVoidRequest,
   options?: Record<string, any>,
 ) {

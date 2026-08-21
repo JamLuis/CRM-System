@@ -164,12 +164,13 @@ class CustomerServiceImplTest
         query.setName("测试");
 
         List<CrmCustomer> mockResult = Arrays.asList(new CrmCustomer(), new CrmCustomer());
-        when(customerMapper.selectList("test-tenant", query)).thenReturn(mockResult);
+        when(customerMapper.selectVisibleList("test-tenant", query, "ALL", 1L, null))
+                .thenReturn(mockResult);
 
         List<CrmCustomer> result = customerService.list(query);
 
         assertEquals(2, result.size());
-        verify(customerMapper).selectList("test-tenant", query);
+        verify(customerMapper).selectVisibleList("test-tenant", query, "ALL", 1L, null);
     }
 
     @Test

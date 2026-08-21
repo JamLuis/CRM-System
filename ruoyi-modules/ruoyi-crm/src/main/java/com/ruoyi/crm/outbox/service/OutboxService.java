@@ -26,6 +26,10 @@ public interface OutboxService
      */
     List<CrmOutbox> findFailedForRetry(String tenantId, int maxRetries, int limit);
 
+    boolean claimForDelivery(Long id, String tenantId, int version);
+
+    int recoverStaleSending(String tenantId, int staleSeconds);
+
     /**
      * 更新消息状态
      */

@@ -17,6 +17,10 @@ public interface CrmContactMapper
      */
     CrmContact selectByContactId(@Param("tenantId") String tenantId, @Param("contactId") Long contactId);
 
+    /** 按外部来源数据 ID 查询（幂等导入） */
+    CrmContact selectBySourceDataId(@Param("tenantId") String tenantId,
+                                    @Param("sourceDataId") String sourceDataId);
+
     /**
      * 按客户查询联系人列表
      */
@@ -29,10 +33,21 @@ public interface CrmContactMapper
                                         @Param("customerId") Long customerId,
                                         @Param("phoneNumber") String phoneNumber);
 
+    /** 按客户和姓名查询联系人（导入跟进记录时建立关联） */
+    CrmContact selectByCustomerAndName(@Param("tenantId") String tenantId,
+                                       @Param("customerId") Long customerId,
+                                       @Param("name") String name);
+
     /**
      * 插入联系人
      */
     int insert(CrmContact contact);
+
+    /** 为已有同手机号联系人补充外部来源 ID。 */
+    int bindSourceDataId(@Param("tenantId") String tenantId,
+                         @Param("contactId") Long contactId,
+                         @Param("sourceDataId") String sourceDataId,
+                         @Param("updateBy") String updateBy);
 
     /**
      * 更新联系人（乐观锁）

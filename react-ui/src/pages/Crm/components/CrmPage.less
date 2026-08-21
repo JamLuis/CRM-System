@@ -1,0 +1,147 @@
+/* CRM 页面共享样式：统计卡片、区块标题、信息网格 */
+
+@primary: #1677ff;
+@text-main: #0f172a;
+@text-sub: #64748b;
+@border: #eef1f6;
+
+/* ---------- 列表页顶部统计卡片 ---------- */
+.crmStatCard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #f7faff 100%);
+  border: 1px solid @border;
+  border-radius: 10px;
+}
+
+.crmStatItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  background: #ffffff;
+  border: 1px solid @border;
+  border-radius: 8px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 8%);
+  }
+}
+
+.crmStatLabel {
+  font-size: 12px;
+  color: @text-sub;
+}
+
+.crmStatValue {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: @text-main;
+}
+
+.crmStatValuePrimary {
+  color: @primary;
+}
+
+.crmStatItemClickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.crmStatItemActive {
+  border-color: @primary;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 12%);
+}
+
+/* ---------- 详情页信息网格 ---------- */
+.crmInfoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0 32px;
+}
+
+.crmInfoItem {
+  display: flex;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px dashed @border;
+}
+
+.crmInfoLabel {
+  flex: none;
+  width: 112px;
+  color: @text-sub;
+  font-size: 13px;
+}
+
+.crmInfoValue {
+  flex: 1;
+  min-width: 0;
+  color: @text-main;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.crmInfoItemWide {
+  grid-column: 1 / -1;
+}
+
+/* ---------- 详情页头部摘要条 ---------- */
+.crmDetailHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #1677ff 0%, #4096ff 100%);
+  border-radius: 10px;
+  color: #ffffff;
+
+  .crmDetailName {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .crmDetailMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    opacity: 0.92;
+  }
+
+  .ant-tag {
+    margin-inline-end: 0;
+    border: none;
+  }
+}
+
+/* ---------- Tabs 内容区留白 ---------- */
+.crmDetailTabs {
+  .ant-tabs-nav {
+    margin-bottom: 16px;
+    padding: 0 20px;
+    background: #ffffff;
+    border-radius: 10px;
+  }
+
+  .ant-tabs-tab {
+    padding: 14px 4px;
+  }
+}
+
+/* ---------- 工具栏按钮分组 ---------- */
+.crmToolbarGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

@@ -1,6 +1,8 @@
 package com.ruoyi.crm.followup.domain;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.ruoyi.crm.common.domain.CrmBaseEntity;
 
 import java.util.Date;
@@ -18,7 +20,10 @@ public class CrmFollowUp extends CrmBaseEntity
     private static final long serialVersionUID = 1L;
 
     /** 跟进记录ID（雪花） */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long followUpId;
+    /** 外部来源数据 ID（用于幂等导入） */
+    private String sourceDataId;
     /** 客户ID */
     private Long customerId;
     /** 跟进方式(PHONE/WECHAT/IN_PERSON) */
@@ -40,6 +45,7 @@ public class CrmFollowUp extends CrmBaseEntity
     /** 无下一次跟进计划原因 */
     private String noNextFollowUpReason;
     /** 更正记录引用的原跟进ID */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long correctionOfFollowUpId;
     /** 更正原因 */
     private String correctionReason;
@@ -56,6 +62,20 @@ public class CrmFollowUp extends CrmBaseEntity
     /** 提交完成时间，之后正文不可直接更新 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date immutableAt;
+    /** 导入源联系人名称（多个用顿号分隔） */
+    private String sourceContactNames;
+    /** 导入源附件引用，仅留档，不作为 CRM 附件入库 */
+    private String sourceAttachmentRefs;
+    /** 导入源是否大客户 */
+    private Boolean sourceIsKeyCustomer;
+    /** 导入源创建人部门 */
+    private String sourceCreatorDept;
+    /** 导入源审批单标题 */
+    private String sourceApprovalTitle;
+    /** 导入源负责人名称 */
+    private String sourceOwnerNames;
+    /** 导入源协同人名称 */
+    private String sourceCollaboratorNames;
 
     public Long getFollowUpId()
     {
@@ -65,6 +85,16 @@ public class CrmFollowUp extends CrmBaseEntity
     public void setFollowUpId(Long followUpId)
     {
         this.followUpId = followUpId;
+    }
+
+    public String getSourceDataId()
+    {
+        return sourceDataId;
+    }
+
+    public void setSourceDataId(String sourceDataId)
+    {
+        this.sourceDataId = sourceDataId;
     }
 
     public Long getCustomerId()
@@ -236,4 +266,19 @@ public class CrmFollowUp extends CrmBaseEntity
     {
         this.immutableAt = immutableAt;
     }
+
+    public String getSourceContactNames() { return sourceContactNames; }
+    public void setSourceContactNames(String sourceContactNames) { this.sourceContactNames = sourceContactNames; }
+    public String getSourceAttachmentRefs() { return sourceAttachmentRefs; }
+    public void setSourceAttachmentRefs(String sourceAttachmentRefs) { this.sourceAttachmentRefs = sourceAttachmentRefs; }
+    public Boolean getSourceIsKeyCustomer() { return sourceIsKeyCustomer; }
+    public void setSourceIsKeyCustomer(Boolean sourceIsKeyCustomer) { this.sourceIsKeyCustomer = sourceIsKeyCustomer; }
+    public String getSourceCreatorDept() { return sourceCreatorDept; }
+    public void setSourceCreatorDept(String sourceCreatorDept) { this.sourceCreatorDept = sourceCreatorDept; }
+    public String getSourceApprovalTitle() { return sourceApprovalTitle; }
+    public void setSourceApprovalTitle(String sourceApprovalTitle) { this.sourceApprovalTitle = sourceApprovalTitle; }
+    public String getSourceOwnerNames() { return sourceOwnerNames; }
+    public void setSourceOwnerNames(String sourceOwnerNames) { this.sourceOwnerNames = sourceOwnerNames; }
+    public String getSourceCollaboratorNames() { return sourceCollaboratorNames; }
+    public void setSourceCollaboratorNames(String sourceCollaboratorNames) { this.sourceCollaboratorNames = sourceCollaboratorNames; }
 }

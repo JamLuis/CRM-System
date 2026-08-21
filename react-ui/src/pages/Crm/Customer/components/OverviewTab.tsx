@@ -1,14 +1,21 @@
 import React from 'react';
-import { Card, Descriptions, Tag } from 'antd';
+import { Card, Tag } from 'antd';
 import {
   FOLLOW_UP_STATUS_ENUM,
   IMPORTANCE_ENUM,
   LIFECYCLE_STAGE_ENUM,
   OPERATING_STATUS_ENUM,
 } from '../../constants';
+import '../../components/CrmPage.less';
 
 export type OverviewTabProps = {
   customer?: API.Crm.Customer;
+};
+
+type InfoItem = {
+  label: string;
+  value?: React.ReactNode;
+  wide?: boolean;
 };
 
 /** 客户概览 */
@@ -26,41 +33,68 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ customer }) => {
     .filter(Boolean)
     .join(' ');
 
+  const items: InfoItem[] = [
+    { label: '客户名称', value: customer.name },
+    { label: '客户编码', value: customer.customerCode },
+    { label: '客户状态', value: customer.sourceCustomerStatus },
+    {
+      label: '客户跟进状态',
+      value: customer.sourceFollowUpStatus || customer.lifecycleStage,
+    },
+    {
+      label: 'CRM 经营状态',
+      value:
+        OPERATING_STATUS_ENUM[customer.operatingStatus || '']?.text || customer.operatingStatus,
+    },
+    {
+      label: 'CRM 生命周期阶段',
+      value: LIFECYCLE_STAGE_ENUM[customer.lifecycleStage || '']?.text || customer.lifecycleStage,
+    },
+    { label: '跟进力度', value: customer.followUpIntensity },
+    { label: '客户群', value: customer.customerGroup },
+    {
+      label: '重要程度',
+      value: IMPORTANCE_ENUM[customer.importance || '']?.text || customer.importance,
+    },
+    {
+      label: '跟进健康度',
+      value: followUpMeta ? <Tag color={followUpMeta.color}>{followUpMeta.text}</Tag> : undefined,
+    },
+    {
+      label: '客户来源',
+      value: [customer.source, customer.sourceOther].filter(Boolean).join(' / '),
+    },
+    {
+      label: '客户行业',
+      value: [customer.industry, customer.industryOther].filter(Boolean).join(' / '),
+    },
+    { label: '介绍客户名称', value: customer.referredCustomerName },
+    { label: '负责人', value: customer.sourceOwnerName || customer.primaryOwnerName },
+    { label: '协同人', value: customer.sourceCollaboratorNames || customer.collaboratorNames },
+    { label: '归属部门', value: customer.ownerDeptId },
+    { label: '下次跟进时间', value: customer.nextFollowUpAt },
+    { label: '最近有效跟进', value: customer.lastEffectiveFollowUpAt },
+    { label: '创建人', value: customer.sourceCreatorName || customer.createBy },
+    { label: '创建时间', value: customer.createTime },
+    { label: '更新时间', value: customer.updateTime },
+    { label: '掉保时间', value: customer.droppedProtectionAt },
+    { label: '计划恢复时间', value: customer.plannedResumeAt },
+    { label: '归档时间', value: customer.archivedAt },
+    { label: '地址', value: address, wide: true },
+    { label: '状态变更原因', value: customer.statusChangeReason, wide: true },
+    { label: '备注', value: customer.remark, wide: true },
+  ];
+
   return (
-    <Card>
-      <Descriptions column={2} bordered size="small">
-        <Descriptions.Item label="客户名称">{customer.name}</Descriptions.Item>
-        <Descriptions.Item label="客户编码">{customer.customerCode}</Descriptions.Item>
-        <Descriptions.Item label="经营状态">
-          {OPERATING_STATUS_ENUM[customer.operatingStatus || '']?.text || customer.operatingStatus}
-        </Descriptions.Item>
-        <Descriptions.Item label="生命周期阶段">
-          {LIFECYCLE_STAGE_ENUM[customer.lifecycleStage || '']?.text || customer.lifecycleStage}
-        </Descriptions.Item>
-        <Descriptions.Item label="重要程度">
-          {IMPORTANCE_ENUM[customer.importance || '']?.text || customer.importance}
-        </Descriptions.Item>
-        <Descriptions.Item label="跟进健康度">
-          {followUpMeta ? <Tag color={followUpMeta.color}>{followUpMeta.text}</Tag> : '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="客户来源">{customer.source || '-'}</Descriptions.Item>
-        <Descriptions.Item label="行业">{customer.industry || '-'}</Descriptions.Item>
-        <Descriptions.Item label="主负责人">{customer.primaryOwnerName || '-'}</Descriptions.Item>
-        <Descriptions.Item label="归属部门">{customer.ownerDeptId || '-'}</Descriptions.Item>
-        <Descriptions.Item label="下次跟进时间">{customer.nextFollowUpAt || '-'}</Descriptions.Item>
-        <Descriptions.Item label="最近有效跟进">{customer.lastEffectiveFollowUpAt || '-'}</Descriptions.Item>
-        <Descriptions.Item label="地址" span={2}>
-          {address || '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="状态变更原因" span={2}>
-          {customer.statusChangeReason || '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="计划恢复时间">{customer.plannedResumeAt || '-'}</Descriptions.Item>
-        <Descriptions.Item label="归档时间">{customer.archivedAt || '-'}</Descriptions.Item>
-        <Descriptions.Item label="备注" span={2}>
-          {customer.remark || '-'}
-        </Descriptions.Item>
-      </Descriptions>
+    <Card styles={{ body: { padding: '4px 20px 12px' } }}>
+      <div className="crmInfoGrid">
+        {items.map((item) => (
+          <div key={item.label} className={`crmInfoItem${item.wide ? ' crmInfoItemWide' : ''}`}>
+            <span className="crmInfoLabel">{item.label}</span>
+            <span className="crmInfoValue">{item.value || '-'}</span>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 };

@@ -25,7 +25,7 @@ public class DataJobProperties
     /**
      * 单次导入最大行数
      */
-    private int importMaxRows = 2000;
+    private int importMaxRows = 10000;
 
     public String getStoragePath()
     {

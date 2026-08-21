@@ -15,6 +15,8 @@ import com.ruoyi.crm.customer.service.OwnerService;
 import com.ruoyi.crm.permission.PermissionCode;
 import com.ruoyi.crm.permission.PermissionContext;
 import com.ruoyi.crm.permission.PermissionService;
+import com.ruoyi.crm.permission.CustomerAccessGuard;
+import com.ruoyi.crm.tenant.mapper.CrmDingtalkDirectoryUserMapper;
 import com.ruoyi.system.api.model.LoginUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +54,12 @@ public class OwnerServiceImpl implements OwnerService
     private PermissionService permissionService;
 
     @Autowired
+    private CustomerAccessGuard customerAccessGuard;
+
+    @Autowired
+    private CrmDingtalkDirectoryUserMapper directoryUserMapper;
+
+    @Autowired
     private AuditEventService auditEventService;
 
     @Autowired
@@ -63,6 +71,7 @@ public class OwnerServiceImpl implements OwnerService
                                    Long targetOwnerDeptId, boolean keepPreviousAsCollaborator, String reason)
     {
         String tenantId = TenantContext.getTenantId();
+        assertCrmAccessGranted(tenantId, targetOwnerId);
         Long operatorId = SecurityUtils.getUserId();
         String operatorName = SecurityUtils.getUsername();
         LoginUser loginUser = SecurityUtils.getLoginUser();
@@ -229,6 +238,7 @@ public class OwnerServiceImpl implements OwnerService
     public CrmOwnerChange addCollaborator(Long customerId, Long collaboratorId, String collaboratorName)
     {
         String tenantId = TenantContext.getTenantId();
+        assertCrmAccessGranted(tenantId, collaboratorId);
         Long operatorId = SecurityUtils.getUserId();
         String operatorName = SecurityUtils.getUsername();
         LoginUser loginUser = SecurityUtils.getLoginUser();
@@ -365,6 +375,7 @@ public class OwnerServiceImpl implements OwnerService
     @Override
     public List<CrmCustomerOwner> listMembers(Long customerId)
     {
+        customerAccessGuard.check(customerId, PermissionCode.CRM_CUSTOMER_READ);
         String tenantId = TenantContext.getTenantId();
         return ownerMapper.selectActiveByCustomer(tenantId, customerId);
     }
@@ -372,11 +383,20 @@ public class OwnerServiceImpl implements OwnerService
     @Override
     public List<CrmOwnerChange> listChangeHistory(Long customerId)
     {
+        customerAccessGuard.check(customerId, PermissionCode.CRM_CUSTOMER_READ);
         String tenantId = TenantContext.getTenantId();
         return changeMapper.selectByCustomer(tenantId, customerId);
     }
 
     // ==================== Private helpers ====================
+
+    private void assertCrmAccessGranted(String tenantId, Long userId)
+    {
+        if (userId == null || directoryUserMapper.countGrantedBySysUserId(tenantId, userId) == 0)
+        {
+            throw new IllegalArgumentException("只能选择已分配 CRM 访问权限的在职人员");
+        }
+    }
 
     private PermissionContext buildPermissionContext(CrmCustomer customer, Long operatorId,
                                                     Long operatorDeptId, boolean isAdmin,

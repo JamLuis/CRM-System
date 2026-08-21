@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
 import { DatePicker, Form, Input, Modal } from 'antd';
 import dayjs from 'dayjs';
+import React, { useEffect } from 'react';
+import { CRM_HORIZONTAL_FORM_PROPS } from '../../components/formLayout';
 
 export type StatusCommandKey =
   | 'pause'
@@ -10,7 +11,10 @@ export type StatusCommandKey =
   | 'restoreArchive'
   | 'restoreInvalid';
 
-const COMMAND_META: Record<StatusCommandKey, { title: string; needReason: boolean; needResumeAt: boolean }> = {
+const COMMAND_META: Record<
+  StatusCommandKey,
+  { title: string; needReason: boolean; needResumeAt: boolean }
+> = {
   pause: { title: '暂停跟进', needReason: true, needResumeAt: false },
   resume: { title: '恢复跟进', needReason: true, needResumeAt: false },
   invalidate: { title: '设为已失效', needReason: true, needResumeAt: false },
@@ -71,13 +75,9 @@ const StatusCommandModal: React.FC<StatusCommandModalProps> = (props) => {
       width={480}
       destroyOnClose
     >
-      <Form form={form} layout="vertical">
+      <Form form={form} {...CRM_HORIZONTAL_FORM_PROPS}>
         {meta.needReason && (
-          <Form.Item
-            name="reason"
-            label="原因"
-            rules={[{ required: true, message: '请填写原因' }]}
-          >
+          <Form.Item name="reason" label="原因" rules={[{ required: true, message: '请填写原因' }]}>
             <Input.TextArea rows={3} maxLength={255} placeholder="请填写原因" />
           </Form.Item>
         )}

@@ -76,7 +76,7 @@ export default defineConfig({
    * @name layout 插件
    * @doc https://umijs.org/docs/max/layout-menu
    */
-  title: 'Ant Design Pro',
+  title: 'CRM 管理系统',
   layout: {
     locale: true,
     ...defaultSettings,
@@ -128,6 +128,12 @@ export default defineConfig({
   headScripts: [
     // 解决首次加载时白屏的问题
     { src: '/scripts/loading.js', async: true },
+    // 钉钉 H5 微应用四端调试工具（仅在钉钉容器内生效，非钉钉环境无影响）
+    // 使用方法：在钉钉开发者后台 > 应用能力 > 网页应用 > 去调试，选择应用后点击「钉钉端内调试」
+    {
+      src: 'https://g.alicdn.com/code/npm/@ali/dingtalk-h5-remote-debug/0.1.3/index.js',
+      async: true,
+    },
   ],
   //================ pro 插件配置 =================
   presets: ['umi-presets-pro'],

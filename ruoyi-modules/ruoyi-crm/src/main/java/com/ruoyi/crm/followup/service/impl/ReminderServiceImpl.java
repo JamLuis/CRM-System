@@ -10,6 +10,9 @@ import com.ruoyi.crm.followup.mapper.CrmReminderDeliveryMapper;
 import com.ruoyi.crm.followup.mapper.CrmReminderPlanMapper;
 import com.ruoyi.crm.followup.service.ReminderService;
 import com.ruoyi.common.security.utils.SecurityUtils;
+import com.ruoyi.crm.outbox.domain.CrmOutbox;
+import com.ruoyi.crm.outbox.service.OutboxService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +41,12 @@ public class ReminderServiceImpl implements ReminderService
 
     @Autowired
     private IdGenerator idGenerator;
+
+    @Autowired
+    private OutboxService outboxService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -92,6 +101,22 @@ public class ReminderServiceImpl implements ReminderService
         delivery.setUpdateBy(operatorName);
 
         deliveryMapper.insert(delivery);
+
+        CrmOutbox outbox = new CrmOutbox();
+        outbox.setTenantId(tenantId);
+        outbox.setAggregateType("REMINDER_DELIVERY");
+        outbox.setAggregateId(String.valueOf(delivery.getDeliveryId()));
+        outbox.setEventType("DINGTALK_REMINDER");
+        outbox.setNextRetryTime(scheduledAt);
+        try
+        {
+            outbox.setPayload(objectMapper.writeValueAsString(delivery));
+        }
+        catch (Exception e)
+        {
+            throw new IllegalStateException("序列化提醒消息失败", e);
+        }
+        outboxService.create(outbox);
 
         log.info("Reminder plan created: tenantId={}, planId={}, customerId={}, scheduledAt={}",
                 tenantId, plan.getPlanId(), customerId, scheduledAt);

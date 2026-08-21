@@ -95,6 +95,19 @@ public class CustomerServiceImpl implements CustomerService
         {
             customer.setLifecycleStage(LifecycleStage.NEW.getValue());
         }
+        // 地址 NOT NULL 字段空串兜底（与导入逻辑保持一致）
+        if (customer.getAddressProvince() == null)
+        {
+            customer.setAddressProvince("");
+        }
+        if (customer.getAddressCity() == null)
+        {
+            customer.setAddressCity("");
+        }
+        if (customer.getAddressDetail() == null)
+        {
+            customer.setAddressDetail("");
+        }
         // 正常客户必须有 nextFollowUpAt
         if (customer.getNextFollowUpAt() == null)
         {
@@ -261,23 +274,8 @@ public class CustomerServiceImpl implements CustomerService
 
         ScopeType scopeType = permissionService.getScopeType(tenantId, operatorId);
 
-        switch (scopeType)
-        {
-            case ALL:
-                return customerMapper.selectList(tenantId, query);
-            case DEPT:
-                // 部门范围：按 ownerDeptId 查询
-                if (query.getOwnerDeptId() == null)
-                {
-                    query.setOwnerDeptId(operatorDeptId);
-                }
-                return customerMapper.selectList(tenantId, query);
-            case SELF_CREATED_OR_MEMBER:
-            default:
-                // 本人主负责或协同
-                query.setPrimaryOwnerId(operatorId);
-                return customerMapper.selectList(tenantId, query);
-        }
+        return customerMapper.selectVisibleList(
+                tenantId, query, scopeType.name(), operatorId, operatorDeptId);
     }
 
     @Override

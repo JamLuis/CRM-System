@@ -1,7 +1,7 @@
 import { request } from '@umijs/max';
 
 /** 查询客户的联系人列表 */
-export async function getContactsByCustomer(customerId: number, options?: Record<string, any>) {
+export async function getContactsByCustomer(customerId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.Contact[]>>(
     `/api/crm/v1/contacts/by-customer/${customerId}`,
     { method: 'GET', ...(options || {}) },
@@ -9,7 +9,7 @@ export async function getContactsByCustomer(customerId: number, options?: Record
 }
 
 /** 查询联系人详情 */
-export async function getContact(contactId: number, options?: Record<string, any>) {
+export async function getContact(contactId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.Contact>>(`/api/crm/v1/contacts/${contactId}`, {
     method: 'GET',
     ...(options || {}),
@@ -37,7 +37,7 @@ export async function updateContact(data: API.Crm.Contact, options?: Record<stri
 }
 
 /** 停用联系人 */
-export async function deactivateContact(contactId: number, options?: Record<string, any>) {
+export async function deactivateContact(contactId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.Contact>>(`/api/crm/v1/contacts/${contactId}/deactivate`, {
     method: 'POST',
     ...(options || {}),

@@ -18,6 +18,7 @@ import com.ruoyi.crm.followup.service.ReminderService;
 import com.ruoyi.crm.permission.PermissionCode;
 import com.ruoyi.crm.permission.PermissionContext;
 import com.ruoyi.crm.permission.PermissionService;
+import com.ruoyi.crm.permission.CustomerAccessGuard;
 import com.ruoyi.system.api.model.LoginUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +63,9 @@ public class FollowUpServiceImpl implements FollowUpService
     private PermissionService permissionService;
 
     @Autowired
+    private CustomerAccessGuard customerAccessGuard;
+
+    @Autowired
     private AuditEventService auditEventService;
 
     @Autowired
@@ -103,7 +107,7 @@ public class FollowUpServiceImpl implements FollowUpService
         // PHONE/WECHAT 必须至少一条 AVAILABLE 图片附件
         if (method == FollowUpMethod.PHONE || method == FollowUpMethod.WECHAT)
         {
-            validateImageAttachments(tenantId, followUp.getFollowUpId(), attachmentIds);
+            validateImageAttachments(tenantId, followUp.getCustomerId(), attachmentIds);
         }
 
         // 设置默认值
@@ -223,7 +227,7 @@ public class FollowUpServiceImpl implements FollowUpService
         // PHONE/WECHAT 必须至少一条 AVAILABLE 图片附件
         if (method == FollowUpMethod.PHONE || method == FollowUpMethod.WECHAT)
         {
-            validateImageAttachments(tenantId, correction.getFollowUpId(), attachmentIds);
+            validateImageAttachments(tenantId, correction.getCustomerId(), attachmentIds);
         }
 
         // 创建更正记录
@@ -361,6 +365,7 @@ public class FollowUpServiceImpl implements FollowUpService
     @Override
     public List<CrmFollowUp> listByCustomer(Long customerId)
     {
+        customerAccessGuard.check(customerId, PermissionCode.CRM_FOLLOWUP_READ);
         String tenantId = TenantContext.getTenantId();
         return followUpMapper.selectByCustomer(tenantId, customerId);
     }
@@ -400,7 +405,7 @@ public class FollowUpServiceImpl implements FollowUpService
     /**
      * 校验 PHONE/WECHAT 跟进必须至少一条 AVAILABLE 图片附件
      */
-    private void validateImageAttachments(String tenantId, Long followUpId, List<Long> attachmentIds)
+    private void validateImageAttachments(String tenantId, Long customerId, List<Long> attachmentIds)
     {
         if (attachmentIds == null || attachmentIds.isEmpty())
         {
@@ -413,6 +418,8 @@ public class FollowUpServiceImpl implements FollowUpService
             CrmAttachment attachment = attachmentMapper.selectByAttachmentId(tenantId, attachmentId);
             if (attachment != null
                     && AttachmentStatus.AVAILABLE.name().equals(attachment.getStatus())
+                    && AttachmentOwnerType.CUSTOMER.name().equals(attachment.getOwnerType())
+                    && customerId.equals(attachment.getOwnerId())
                     && attachment.getContentType() != null
                     && attachment.getContentType().startsWith("image/"))
             {

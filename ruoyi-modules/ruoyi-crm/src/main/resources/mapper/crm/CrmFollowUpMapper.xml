@@ -4,6 +4,7 @@
 
     <resultMap type="com.ruoyi.crm.followup.domain.CrmFollowUp" id="CrmFollowUpResult">
         <result property="followUpId"              column="follow_up_id"/>
+        <result property="sourceDataId"            column="source_data_id"/>
         <result property="tenantId"                column="tenant_id"/>
         <result property="customerId"              column="customer_id"/>
         <result property="method"                   column="method"/>
@@ -22,6 +23,13 @@
         <result property="createdBy"                 column="created_by"/>
         <result property="createdByName"            column="created_by_name"/>
         <result property="immutableAt"               column="immutable_at"/>
+        <result property="sourceContactNames"        column="source_contact_names"/>
+        <result property="sourceAttachmentRefs"      column="source_attachment_refs"/>
+        <result property="sourceIsKeyCustomer"       column="source_is_key_customer"/>
+        <result property="sourceCreatorDept"         column="source_creator_dept"/>
+        <result property="sourceApprovalTitle"       column="source_approval_title"/>
+        <result property="sourceOwnerNames"          column="source_owner_names"/>
+        <result property="sourceCollaboratorNames"   column="source_collaborator_names"/>
         <result property="createBy"                 column="create_by"/>
         <result property="createTime"               column="create_time"/>
         <result property="updateBy"                 column="update_by"/>
@@ -31,10 +39,12 @@
     </resultMap>
 
     <sql id="selectColumns">
-        follow_up_id, tenant_id, customer_id, method, follow_up_at, content,
+        follow_up_id, source_data_id, tenant_id, customer_id, method, follow_up_at, content,
         has_new_signing_project, outcome, next_action, next_follow_up_at, no_next_follow_up_reason,
         correction_of_follow_up_id, correction_reason, is_corrected, is_voided, voided_reason,
         created_by, created_by_name, immutable_at,
+        source_contact_names, source_attachment_refs, source_is_key_customer,
+        source_creator_dept, source_approval_title, source_owner_names, source_collaborator_names,
         create_by, create_time, update_by, update_time, version, del_flag
     </sql>
 
@@ -42,6 +52,13 @@
         SELECT <include refid="selectColumns"/>
         FROM crm_follow_up
         WHERE tenant_id = #{tenantId} AND follow_up_id = #{followUpId} AND del_flag = '0'
+    </select>
+
+    <select id="selectBySourceDataId" resultMap="CrmFollowUpResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_follow_up
+        WHERE tenant_id = #{tenantId} AND source_data_id = #{sourceDataId} AND del_flag = '0'
+        LIMIT 1
     </select>
 
     <select id="selectByCustomer" resultMap="CrmFollowUpResult">
@@ -67,17 +84,21 @@
 
     <insert id="insert" parameterType="com.ruoyi.crm.followup.domain.CrmFollowUp">
         INSERT INTO crm_follow_up (
-            follow_up_id, tenant_id, customer_id, method, follow_up_at, content,
+            follow_up_id, source_data_id, tenant_id, customer_id, method, follow_up_at, content,
             has_new_signing_project, outcome, next_action, next_follow_up_at, no_next_follow_up_reason,
             correction_of_follow_up_id, correction_reason, is_corrected, is_voided, voided_reason,
             created_by, created_by_name, immutable_at,
+            source_contact_names, source_attachment_refs, source_is_key_customer,
+            source_creator_dept, source_approval_title, source_owner_names, source_collaborator_names,
             create_by, create_time, update_by, update_time, version, del_flag
         ) VALUES (
-            #{followUpId}, #{tenantId}, #{customerId}, #{method}, #{followUpAt}, #{content},
+            #{followUpId}, #{sourceDataId}, #{tenantId}, #{customerId}, #{method}, #{followUpAt}, #{content},
             #{hasNewSigningProject}, #{outcome}, #{nextAction}, #{nextFollowUpAt}, #{noNextFollowUpReason},
             #{correctionOfFollowUpId}, #{correctionReason}, #{isCorrected}, #{isVoided}, #{voidedReason},
             #{createdBy}, #{createdByName}, #{immutableAt},
-            #{createBy}, NOW(), #{updateBy}, NOW(), 0, '0'
+            #{sourceContactNames}, #{sourceAttachmentRefs}, #{sourceIsKeyCustomer},
+            #{sourceCreatorDept}, #{sourceApprovalTitle}, #{sourceOwnerNames}, #{sourceCollaboratorNames},
+            #{createBy}, COALESCE(#{createTime}, NOW()), #{updateBy}, COALESCE(#{updateTime}, NOW()), 0, '0'
         )
     </insert>
 

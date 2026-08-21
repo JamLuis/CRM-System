@@ -38,6 +38,8 @@ import java.util.Map;
 public class DingTalkLoginServiceImpl implements DingTalkLoginService
 {
     private static final Logger log = LoggerFactory.getLogger(DingTalkLoginServiceImpl.class);
+    private static final String CRM_ACCESS_PERMISSION = "crm:access";
+    private static final String ADMIN_PERMISSION = "*:*:*";
 
     @Autowired
     private DingTalkIdentityExchangeService identityExchangeService;
@@ -113,6 +115,18 @@ public class DingTalkLoginServiceImpl implements DingTalkLoginService
 
         // 6. 签发会话（与密码登录同一 TokenService）
         LoginUser loginUser = loginResult.getData();
+        if (loginUser.getPermissions() == null
+                || (!loginUser.getPermissions().contains(CRM_ACCESS_PERMISSION)
+                && !loginUser.getPermissions().contains(ADMIN_PERMISSION)))
+        {
+            recordLogininfor(sysUser.getUserName(), Constants.LOGIN_FAIL, "钉钉免登失败：未分配CRM访问权限");
+            result.put("status", "PENDING_AUTHORIZATION");
+            result.put("sysUserId", sysUserId);
+            log.info("DingTalk login denied: CRM access not granted, dingtalkUserId={}, sysUserId={}",
+                    userInfo.getUserid(), sysUserId);
+            return result;
+        }
+
         Map<String, Object> tokenMap = tokenService.createToken(loginUser);
 
         result.put("status", "MAPPED");

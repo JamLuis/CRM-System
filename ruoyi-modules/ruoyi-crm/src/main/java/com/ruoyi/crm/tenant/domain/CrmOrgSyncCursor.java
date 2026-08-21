@@ -19,6 +19,10 @@ public class CrmOrgSyncCursor extends CrmBaseEntity
     private String cursor;
     /** 最后同步时间 */
     private java.util.Date lastSyncTime;
+    /** 最近一次同步状态（SUCCESS/FAILED） */
+    private String status;
+    /** 最近一次失败摘要 */
+    private String errorSummary;
 
     public Long getId()
     {
@@ -58,5 +62,25 @@ public class CrmOrgSyncCursor extends CrmBaseEntity
     public void setLastSyncTime(java.util.Date lastSyncTime)
     {
         this.lastSyncTime = lastSyncTime;
+    }
+
+    public String getStatus()
+    {
+        return status;
+    }
+
+    public void setStatus(String status)
+    {
+        this.status = status;
+    }
+
+    public String getErrorSummary()
+    {
+        return errorSummary;
+    }
+
+    public void setErrorSummary(String errorSummary)
+    {
+        this.errorSummary = errorSummary;
     }
 }

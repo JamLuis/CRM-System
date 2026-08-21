@@ -9,8 +9,10 @@ import com.ruoyi.crm.customer.domain.CrmContact;
 import com.ruoyi.crm.customer.domain.CrmCustomer;
 import com.ruoyi.crm.customer.mapper.CrmContactMapper;
 import com.ruoyi.crm.customer.mapper.CrmCustomerMapper;
+import com.ruoyi.crm.permission.CustomerAccessGuard;
 import com.ruoyi.crm.permission.PermissionContext;
 import com.ruoyi.crm.permission.PermissionService;
+import com.ruoyi.crm.permission.ScopeType;
 import com.ruoyi.system.api.model.LoginUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +20,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -32,6 +36,7 @@ class ContactServiceImplTest
     private CrmCustomerMapper customerMapper;
     private IdGenerator idGenerator;
     private PermissionService permissionService;
+    private CustomerAccessGuard customerAccessGuard;
     private AuditEventService auditEventService;
     private CustomerTimelineService timelineService;
     private ContactServiceImpl contactService;
@@ -44,6 +49,7 @@ class ContactServiceImplTest
         customerMapper = Mockito.mock(CrmCustomerMapper.class);
         idGenerator = Mockito.mock(IdGenerator.class);
         permissionService = Mockito.mock(PermissionService.class);
+        customerAccessGuard = Mockito.mock(CustomerAccessGuard.class);
         auditEventService = Mockito.mock(AuditEventService.class);
         timelineService = Mockito.mock(CustomerTimelineService.class);
 
@@ -65,6 +71,7 @@ class ContactServiceImplTest
         setField(contactService, "customerMapper", customerMapper);
         setField(contactService, "idGenerator", idGenerator);
         setField(contactService, "permissionService", permissionService);
+        setField(contactService, "customerAccessGuard", customerAccessGuard);
         setField(contactService, "auditEventService", auditEventService);
         setField(contactService, "timelineService", timelineService);
     }
@@ -203,6 +210,121 @@ class ContactServiceImplTest
         when(contactMapper.selectByContactId("test-tenant", 9999L)).thenReturn(null);
 
         assertThrows(IllegalArgumentException.class, () -> contactService.detail(9999L));
+    }
+
+    @Test
+    @DisplayName("查询联系人列表 - 客户负责人直接看到明文")
+    void testListPrimaryOwnerCanViewSensitiveFields()
+    {
+        TenantContext.setTenantId("test-tenant");
+        stubOperator(20L, false);
+
+        CrmCustomer customer = customer(1001L, 20L, "21");
+        CrmContact contact = sensitiveContact(3001L, 1001L);
+        when(customerAccessGuard.check(1001L, com.ruoyi.crm.permission.PermissionCode.CRM_CONTACT_READ))
+                .thenReturn(customer);
+        when(contactMapper.selectByCustomer("test-tenant", 1001L)).thenReturn(Arrays.asList(contact));
+
+        CrmContact result = contactService.listByCustomer(1001L).get(0);
+
+        assertEquals("13800138000", result.getPhoneNumber());
+        assertEquals("contact@example.com", result.getEmail());
+        assertEquals("contact_wechat", result.getWechatId());
+    }
+
+    @Test
+    @DisplayName("查询联系人详情 - 客户协同处理人直接看到明文")
+    void testDetailCollaboratorCanViewSensitiveFields()
+    {
+        TenantContext.setTenantId("test-tenant");
+        stubOperator(21L, false);
+
+        CrmCustomer customer = customer(1001L, 20L, " 21,22 ");
+        CrmContact contact = sensitiveContact(3001L, 1001L);
+        when(contactMapper.selectByContactId("test-tenant", 3001L)).thenReturn(contact);
+        when(customerMapper.selectByCustomerId("test-tenant", 1001L)).thenReturn(customer);
+
+        CrmContact result = contactService.detail(3001L);
+
+        assertEquals("13800138000", result.getPhoneNumber());
+        assertEquals("contact@example.com", result.getEmail());
+        assertEquals("contact_wechat", result.getWechatId());
+    }
+
+    @Test
+    @DisplayName("查询联系人详情 - CRM 全量管理员直接看到明文")
+    void testDetailCrmAdminCanViewSensitiveFields()
+    {
+        TenantContext.setTenantId("test-tenant");
+        stubOperator(30L, false);
+
+        CrmCustomer customer = customer(1001L, 20L, "21");
+        CrmContact contact = sensitiveContact(3001L, 1001L);
+        when(contactMapper.selectByContactId("test-tenant", 3001L)).thenReturn(contact);
+        when(customerMapper.selectByCustomerId("test-tenant", 1001L)).thenReturn(customer);
+        when(permissionService.getScopeType("test-tenant", 30L)).thenReturn(ScopeType.ALL);
+
+        CrmContact result = contactService.detail(3001L);
+
+        assertEquals("13800138000", result.getPhoneNumber());
+        assertEquals("contact@example.com", result.getEmail());
+        assertEquals("contact_wechat", result.getWechatId());
+    }
+
+    @Test
+    @DisplayName("查询联系人详情 - 非客户成员只返回脱敏信息")
+    void testDetailNonMemberCannotViewSensitiveFields()
+    {
+        TenantContext.setTenantId("test-tenant");
+        stubOperator(30L, false);
+
+        CrmCustomer customer = customer(1001L, 20L, "21");
+        CrmContact contact = sensitiveContact(3001L, 1001L);
+        contact.setPhoneMasked(null);
+        contact.setEmailMasked(null);
+        contact.setWechatMasked(null);
+        when(contactMapper.selectByContactId("test-tenant", 3001L)).thenReturn(contact);
+        when(customerMapper.selectByCustomerId("test-tenant", 1001L)).thenReturn(customer);
+        when(permissionService.getScopeType("test-tenant", 30L)).thenReturn(ScopeType.DEPT);
+
+        CrmContact result = contactService.detail(3001L);
+
+        assertNull(result.getPhoneNumber());
+        assertNull(result.getEmail());
+        assertNull(result.getWechatId());
+        assertEquals("138****8000", result.getPhoneMasked());
+        assertEquals("c***@example.com", result.getEmailMasked());
+        assertEquals("co***at", result.getWechatMasked());
+    }
+
+    private void stubOperator(Long userId, boolean admin)
+    {
+        securityUtilsMock.when(SecurityUtils::getUserId).thenReturn(userId);
+        securityUtilsMock.when(() -> SecurityUtils.isAdmin(userId)).thenReturn(admin);
+    }
+
+    private CrmCustomer customer(Long customerId, Long primaryOwnerId, String collaboratorIds)
+    {
+        CrmCustomer customer = new CrmCustomer();
+        customer.setCustomerId(customerId);
+        customer.setPrimaryOwnerId(primaryOwnerId);
+        customer.setCollaboratorIds(collaboratorIds);
+        customer.setOperatingStatus("正常");
+        return customer;
+    }
+
+    private CrmContact sensitiveContact(Long contactId, Long customerId)
+    {
+        CrmContact contact = new CrmContact();
+        contact.setContactId(contactId);
+        contact.setCustomerId(customerId);
+        contact.setPhoneNumber("13800138000");
+        contact.setPhoneMasked("138****8000");
+        contact.setEmail("contact@example.com");
+        contact.setEmailMasked("c***@example.com");
+        contact.setWechatId("contact_wechat");
+        contact.setWechatMasked("co***at");
+        return contact;
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception

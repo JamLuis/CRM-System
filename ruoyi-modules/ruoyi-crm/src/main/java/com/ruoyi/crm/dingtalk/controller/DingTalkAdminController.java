@@ -3,24 +3,27 @@ package com.ruoyi.crm.dingtalk.controller;
 import com.ruoyi.common.core.domain.R;
 import com.ruoyi.common.security.annotation.RequiresPermissions;
 import com.ruoyi.crm.common.tenant.TenantContext;
-import com.ruoyi.crm.dingtalk.service.DingTalkIdentityExchangeService;
+import com.ruoyi.crm.dingtalk.domain.CrmAccessGrantRequest;
+import com.ruoyi.crm.dingtalk.service.CrmAccessGrantService;
 import com.ruoyi.crm.dingtalk.sync.OrgSyncService;
 import com.ruoyi.crm.dingtalk.sync.OrgSyncService.SyncCursorInfo;
 import com.ruoyi.crm.dingtalk.sync.OrgSyncService.SyncResult;
-import com.ruoyi.crm.tenant.domain.CrmDingtalkIdentity;
-import com.ruoyi.crm.tenant.mapper.CrmDingtalkIdentityMapper;
+import com.ruoyi.crm.tenant.domain.CrmDingtalkDirectoryUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
+import com.ruoyi.system.api.domain.SysRole;
 
 /**
  * 钉钉管理接口（管理员）
@@ -40,10 +43,7 @@ public class DingTalkAdminController
     private OrgSyncService orgSyncService;
 
     @Autowired
-    private DingTalkIdentityExchangeService identityExchangeService;
-
-    @Autowired
-    private CrmDingtalkIdentityMapper identityMapper;
+    private CrmAccessGrantService accessGrantService;
 
     // ==================== 组织同步 ====================
 
@@ -84,57 +84,44 @@ public class DingTalkAdminController
         return result.success ? R.ok(result) : R.fail("增量同步失败：" + result.error);
     }
 
-    // ==================== 身份映射授权 ====================
-
-    /**
-     * 查询全部身份映射
-     */
+    /** 查询企业通讯录人员及其 CRM 角色、权限和授权状态。 */
     @RequiresPermissions("crm:admin:grant")
-    @GetMapping("/identities")
-    public R<List<CrmDingtalkIdentity>> listIdentities()
+    @GetMapping("/directory-users")
+    public R<List<CrmDingtalkDirectoryUser>> listDirectoryUsers(
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "accessStatus", required = false) String accessStatus)
     {
-        String tenantId = TenantContext.getTenantId();
-        return R.ok(identityMapper.selectAll(tenantId));
+        return R.ok(accessGrantService.listDirectoryUsers(
+                TenantContext.getTenantId(), keyword, accessStatus));
     }
 
-    /**
-     * 按钉钉用户 ID 查询身份映射
-     */
     @RequiresPermissions("crm:admin:grant")
-    @GetMapping("/identities/by-dingtalk-user")
-    public R<CrmDingtalkIdentity> getIdentityByDingtalkUser(@RequestParam("dingtalkUserId") String dingtalkUserId)
+    @GetMapping("/access-roles")
+    public R<List<SysRole>> listAssignableRoles()
     {
-        String tenantId = TenantContext.getTenantId();
-        CrmDingtalkIdentity identity = identityMapper.selectByDingtalkUserId(tenantId, dingtalkUserId);
-        return identity != null ? R.ok(identity) : R.fail("该钉钉用户尚未映射");
+        return R.ok(accessGrantService.listAssignableRoles());
     }
 
-    /**
-     * 创建或更新身份映射（授权钉钉用户访问 CRM）
-     * <p>
-     * 请求体：{ "dingtalkUserId": "...", "sysUserId": 123, "unionId": "可选" }
-     */
+    /** 为已同步的企业人员分配 CRM 角色；身份映射由服务端自动维护。 */
     @RequiresPermissions("crm:admin:grant")
-    @PostMapping("/identities/map")
-    public R<Void> mapIdentity(@RequestBody Map<String, Object> body)
+    @PutMapping("/directory-users/{dingtalkUserId}/access")
+    public R<Long> grantAccess(@PathVariable String dingtalkUserId,
+                               @RequestBody CrmAccessGrantRequest request)
     {
-        String dingtalkUserId = (String) body.get("dingtalkUserId");
-        Object sysUserIdObj = body.get("sysUserId");
-        String unionId = (String) body.get("unionId");
+        Long sysUserId = accessGrantService.grant(
+                TenantContext.getTenantId(), dingtalkUserId, request.getRoleIds());
+        log.info("Admin granted CRM access: dingtalkUserId={}, sysUserId={}",
+                dingtalkUserId, sysUserId);
+        return R.ok(sysUserId);
+    }
 
-        if (dingtalkUserId == null || dingtalkUserId.trim().isEmpty())
-        {
-            return R.fail("dingtalkUserId 不能为空");
-        }
-        if (sysUserIdObj == null)
-        {
-            return R.fail("sysUserId 不能为空");
-        }
-        Long sysUserId = Long.valueOf(String.valueOf(sysUserIdObj));
-
-        String tenantId = TenantContext.getTenantId();
-        identityExchangeService.mapIdentity(tenantId, dingtalkUserId.trim(), sysUserId, unionId);
-        log.info("Admin mapped DingTalk identity: dingtalkUserId={}, sysUserId={}", dingtalkUserId, sysUserId);
+    /** 撤销 CRM 角色和免登身份映射，但保留通讯录人员快照。 */
+    @RequiresPermissions("crm:admin:grant")
+    @DeleteMapping("/directory-users/{dingtalkUserId}/access")
+    public R<Void> revokeAccess(@PathVariable String dingtalkUserId)
+    {
+        accessGrantService.revoke(TenantContext.getTenantId(), dingtalkUserId);
+        log.info("Admin revoked CRM access: dingtalkUserId={}", dingtalkUserId);
         return R.ok();
     }
 }

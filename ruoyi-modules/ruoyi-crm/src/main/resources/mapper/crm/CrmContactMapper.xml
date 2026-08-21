@@ -4,6 +4,7 @@
 
     <resultMap type="com.ruoyi.crm.customer.domain.CrmContact" id="CrmContactResult">
         <result property="contactId"       column="contact_id"/>
+        <result property="sourceDataId"    column="source_data_id"/>
         <result property="tenantId"        column="tenant_id"/>
         <result property="customerId"      column="customer_id"/>
         <result property="name"            column="name"/>
@@ -20,6 +21,8 @@
         <result property="isDecisionMaker" column="is_decision_maker"/>
         <result property="remark"          column="remark"/>
         <result property="status"           column="status"/>
+        <result property="sourceOwnerNames" column="source_owner_names"/>
+        <result property="sourceCollaboratorNames" column="source_collaborator_names"/>
         <result property="createBy"        column="create_by"/>
         <result property="createTime"      column="create_time"/>
         <result property="updateBy"        column="update_by"/>
@@ -29,9 +32,10 @@
     </resultMap>
 
     <sql id="selectColumns">
-        contact_id, tenant_id, customer_id, name, phone_type, country_code,
+        contact_id, source_data_id, tenant_id, customer_id, name, phone_type, country_code,
         phone_number, phone_masked, email, email_masked, wechat_id, wechat_masked,
         responsibility, title, is_decision_maker, remark, status,
+        source_owner_names, source_collaborator_names,
         create_by, create_time, update_by, update_time, version, del_flag
     </sql>
 
@@ -39,6 +43,13 @@
         SELECT <include refid="selectColumns"/>
         FROM crm_contact
         WHERE tenant_id = #{tenantId} AND contact_id = #{contactId} AND del_flag = '0'
+    </select>
+
+    <select id="selectBySourceDataId" resultMap="CrmContactResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_contact
+        WHERE tenant_id = #{tenantId} AND source_data_id = #{sourceDataId} AND del_flag = '0'
+        LIMIT 1
     </select>
 
     <select id="selectByCustomer" resultMap="CrmContactResult">
@@ -57,19 +68,43 @@
           AND del_flag = '0'
     </select>
 
+    <select id="selectByCustomerAndName" resultMap="CrmContactResult">
+        SELECT <include refid="selectColumns"/>
+        FROM crm_contact
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND name = #{name}
+          AND del_flag = '0'
+        ORDER BY status = '有效' DESC, create_time
+        LIMIT 1
+    </select>
+
     <insert id="insert" parameterType="com.ruoyi.crm.customer.domain.CrmContact">
         INSERT INTO crm_contact (
-            contact_id, tenant_id, customer_id, name, phone_type, country_code,
+            contact_id, source_data_id, tenant_id, customer_id, name, phone_type, country_code,
             phone_number, phone_masked, email, email_masked, wechat_id, wechat_masked,
             responsibility, title, is_decision_maker, remark, status,
+            source_owner_names, source_collaborator_names,
             create_by, create_time, update_by, update_time, version, del_flag
         ) VALUES (
-            #{contactId}, #{tenantId}, #{customerId}, #{name}, #{phoneType}, #{countryCode},
+            #{contactId}, #{sourceDataId}, #{tenantId}, #{customerId}, #{name}, #{phoneType}, #{countryCode},
             #{phoneNumber}, #{phoneMasked}, #{email}, #{emailMasked}, #{wechatId}, #{wechatMasked},
             #{responsibility}, #{title}, #{isDecisionMaker}, #{remark}, #{status},
-            #{createBy}, NOW(), #{updateBy}, NOW(), 0, '0'
+            #{sourceOwnerNames}, #{sourceCollaboratorNames},
+            #{createBy}, COALESCE(#{createTime}, NOW()), #{updateBy}, COALESCE(#{updateTime}, NOW()), 0, '0'
         )
     </insert>
+
+    <update id="bindSourceDataId">
+        UPDATE crm_contact
+        SET source_data_id = COALESCE(source_data_id, #{sourceDataId}),
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND contact_id = #{contactId}
+          AND del_flag = '0'
+    </update>
 
     <update id="update" parameterType="com.ruoyi.crm.customer.domain.CrmContact">
         UPDATE crm_contact

@@ -20,9 +20,10 @@ public interface DataJobService
      * 上传导入文件并执行预检（不写业务数据）
      *
      * @param file Excel 文件
+     * @param importType 导入对象（CUSTOMER/CONTACT/FOLLOW_UP）
      * @return 预检完成的作业（状态 VALIDATED，rowResults 为逐行结果）
      */
-    CrmDataJob uploadImport(MultipartFile file);
+    CrmDataJob uploadImport(MultipartFile file, String importType);
 
     /**
      * 确认执行导入（仅执行预检通过的行）

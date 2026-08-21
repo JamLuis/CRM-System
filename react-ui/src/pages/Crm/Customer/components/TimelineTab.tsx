@@ -4,7 +4,7 @@ import { getCustomerTimeline } from '@/services/crm/admin';
 import { TIMELINE_EVENT_TYPE_ENUM } from '../../constants';
 
 export type TimelineTabProps = {
-  customerId: number;
+  customerId: API.Crm.Id;
 };
 
 /** 客户动态时间线（只读） */

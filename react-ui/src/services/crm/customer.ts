@@ -27,7 +27,7 @@ export async function getAllCustomers(
 }
 
 /** 查询客户详情 */
-export async function getCustomer(customerId: number, options?: Record<string, any>) {
+export async function getCustomer(customerId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.Customer>>(`/api/crm/v1/customers/${customerId}`, {
     method: 'GET',
     ...(options || {}),
@@ -64,7 +64,7 @@ export async function updateCustomer(
 
 /** 暂停跟进 */
 export async function pauseCustomer(
-  customerId: number,
+  customerId: API.Crm.Id,
   reason?: string,
   plannedResumeAt?: string,
   options?: Record<string, any>,
@@ -78,7 +78,7 @@ export async function pauseCustomer(
 
 /** 恢复跟进 */
 export async function resumeCustomer(
-  customerId: number,
+  customerId: API.Crm.Id,
   reason?: string,
   options?: Record<string, any>,
 ) {
@@ -91,7 +91,7 @@ export async function resumeCustomer(
 
 /** 设为已失效 */
 export async function invalidateCustomer(
-  customerId: number,
+  customerId: API.Crm.Id,
   reason?: string,
   options?: Record<string, any>,
 ) {
@@ -103,7 +103,7 @@ export async function invalidateCustomer(
 
 /** 归档客户 */
 export async function archiveCustomer(
-  customerId: number,
+  customerId: API.Crm.Id,
   reason?: string,
   options?: Record<string, any>,
 ) {
@@ -115,7 +115,7 @@ export async function archiveCustomer(
 
 /** 恢复归档客户（仅管理员） */
 export async function restoreArchivedCustomer(
-  customerId: number,
+  customerId: API.Crm.Id,
   reason?: string,
   options?: Record<string, any>,
 ) {
@@ -127,7 +127,7 @@ export async function restoreArchivedCustomer(
 
 /** 恢复失效客户（销售主管或管理员） */
 export async function restoreInvalidCustomer(
-  customerId: number,
+  customerId: API.Crm.Id,
   reason?: string,
   options?: Record<string, any>,
 ) {
@@ -140,7 +140,7 @@ export async function restoreInvalidCustomer(
 // ==================== 客户成员与移交 ====================
 
 /** 查询客户成员列表 */
-export async function getCustomerOwners(customerId: number, options?: Record<string, any>) {
+export async function getCustomerOwners(customerId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.CustomerOwner[]>>(
     `/api/crm/v1/customers/${customerId}/owners`,
     { method: 'GET', ...(options || {}) },
@@ -149,7 +149,7 @@ export async function getCustomerOwners(customerId: number, options?: Record<str
 
 /** 移交主负责人 */
 export async function transferOwner(
-  customerId: number,
+  customerId: API.Crm.Id,
   data: API.Crm.TransferRequest,
   options?: Record<string, any>,
 ) {
@@ -166,7 +166,7 @@ export async function transferOwner(
 
 /** 新增协同人 */
 export async function addCollaborator(
-  customerId: number,
+  customerId: API.Crm.Id,
   data: API.Crm.CollaboratorRequest,
   options?: Record<string, any>,
 ) {
@@ -183,7 +183,7 @@ export async function addCollaborator(
 
 /** 移除协同人 */
 export async function removeCollaborator(
-  customerId: number,
+  customerId: API.Crm.Id,
   collaboratorId: number,
   options?: Record<string, any>,
 ) {
@@ -194,7 +194,7 @@ export async function removeCollaborator(
 }
 
 /** 查询负责人变更历史 */
-export async function getOwnerChangeHistory(customerId: number, options?: Record<string, any>) {
+export async function getOwnerChangeHistory(customerId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.OwnerChange[]>>(
     `/api/crm/v1/customers/${customerId}/owners/changes`,
     { method: 'GET', ...(options || {}) },

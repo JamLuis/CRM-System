@@ -13,6 +13,8 @@ import com.ruoyi.crm.customer.mapper.CrmCustomerOwnerMapper;
 import com.ruoyi.crm.customer.mapper.CrmOwnerChangeMapper;
 import com.ruoyi.crm.permission.PermissionContext;
 import com.ruoyi.crm.permission.PermissionService;
+import com.ruoyi.crm.permission.CustomerAccessGuard;
+import com.ruoyi.crm.tenant.mapper.CrmDingtalkDirectoryUserMapper;
 import com.ruoyi.system.api.model.LoginUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +41,8 @@ class OwnerServiceImplTest
     private CrmOwnerChangeMapper ownerChangeMapper;
     private IdGenerator idGenerator;
     private PermissionService permissionService;
+    private CustomerAccessGuard customerAccessGuard;
+    private CrmDingtalkDirectoryUserMapper directoryUserMapper;
     private AuditEventService auditEventService;
     private CustomerTimelineService timelineService;
     private OwnerServiceImpl ownerService;
@@ -52,11 +56,14 @@ class OwnerServiceImplTest
         ownerChangeMapper = Mockito.mock(CrmOwnerChangeMapper.class);
         idGenerator = Mockito.mock(IdGenerator.class);
         permissionService = Mockito.mock(PermissionService.class);
+        customerAccessGuard = Mockito.mock(CustomerAccessGuard.class);
+        directoryUserMapper = Mockito.mock(CrmDingtalkDirectoryUserMapper.class);
         auditEventService = Mockito.mock(AuditEventService.class);
         timelineService = Mockito.mock(CustomerTimelineService.class);
 
         doNothing().when(permissionService).check(any(PermissionContext.class));
         when(idGenerator.nextId()).thenReturn(5001L);
+        when(directoryUserMapper.countGrantedBySysUserId(anyString(), anyLong())).thenReturn(1);
 
         securityUtilsMock = mockStatic(SecurityUtils.class);
         securityUtilsMock.when(SecurityUtils::getUserId).thenReturn(1L);
@@ -74,6 +81,8 @@ class OwnerServiceImplTest
         setField(ownerService, "changeMapper", ownerChangeMapper);
         setField(ownerService, "idGenerator", idGenerator);
         setField(ownerService, "permissionService", permissionService);
+        setField(ownerService, "customerAccessGuard", customerAccessGuard);
+        setField(ownerService, "directoryUserMapper", directoryUserMapper);
         setField(ownerService, "auditEventService", auditEventService);
         setField(ownerService, "timelineService", timelineService);
     }

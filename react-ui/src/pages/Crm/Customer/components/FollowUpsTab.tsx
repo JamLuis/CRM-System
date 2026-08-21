@@ -1,4 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { getContactsByCustomer } from '@/services/crm/contact';
+import {
+  correctFollowUp,
+  createFollowUp,
+  getFollowUpsByCustomer,
+  voidFollowUp,
+} from '@/services/crm/followup';
+import { useAccess } from '@umijs/max';
 import {
   Button,
   Checkbox,
@@ -12,14 +19,13 @@ import {
   Table,
   Tag,
 } from 'antd';
-import { useAccess } from '@umijs/max';
 import dayjs from 'dayjs';
-import { createFollowUp, correctFollowUp, getFollowUpsByCustomer, voidFollowUp } from '@/services/crm/followup';
-import { getContactsByCustomer } from '@/services/crm/contact';
+import React, { useEffect, useState } from 'react';
+import { CRM_HORIZONTAL_FORM_PROPS } from '../../components/formLayout';
 import { FOLLOW_UP_METHOD_ENUM } from '../../constants';
 
 export type FollowUpsTabProps = {
-  customerId: number;
+  customerId: API.Crm.Id;
 };
 
 const methodOptions = Object.keys(FOLLOW_UP_METHOD_ENUM).map((k) => ({ label: k, value: k }));
@@ -135,6 +141,13 @@ const FollowUpsTab: React.FC<FollowUpsTabProps> = ({ customerId }) => {
   const columns = [
     { title: '方式', dataIndex: 'method', width: 80 },
     { title: '跟踪时间', dataIndex: 'followUpAt', width: 160 },
+    { title: '联系人', dataIndex: 'sourceContactNames', width: 150, ellipsis: true },
+    {
+      title: '新签项目',
+      dataIndex: 'hasNewSigningProject',
+      width: 90,
+      render: (v: boolean) => (v ? '是' : '否'),
+    },
     { title: '内容', dataIndex: 'content', ellipsis: true },
     { title: '结果', dataIndex: 'outcome', ellipsis: true },
     { title: '下步动作', dataIndex: 'nextAction', ellipsis: true },
@@ -188,7 +201,7 @@ const FollowUpsTab: React.FC<FollowUpsTabProps> = ({ customerId }) => {
         width={640}
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} {...CRM_HORIZONTAL_FORM_PROPS}>
           <Form.Item name="method" label="跟踪方式" rules={[{ required: true }]}>
             <Select options={methodOptions} />
           </Form.Item>
@@ -203,7 +216,11 @@ const FollowUpsTab: React.FC<FollowUpsTabProps> = ({ customerId }) => {
               options={contacts.map((c) => ({ label: c.name, value: c.contactId }))}
             />
           </Form.Item>
-          <Form.Item name="content" label="跟踪内容" rules={[{ required: true, message: '请填写跟踪内容' }]}>
+          <Form.Item
+            name="content"
+            label="跟踪内容"
+            rules={[{ required: true, message: '请填写跟踪内容' }]}
+          >
             <Input.TextArea rows={3} maxLength={1000} />
           </Form.Item>
           <Form.Item name="hasNewSigningProject" label="是否有新签项目" valuePropName="checked">

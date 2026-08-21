@@ -58,6 +58,12 @@ public class RemoteUserFallbackFactory implements FallbackFactory<RemoteUserServ
             }
 
             @Override
+            public R<Boolean> innerAuthRoles(Long userId, Long[] roleIds, String source)
+            {
+                return R.fail("内部授权用户角色失败:" + throwable.getMessage());
+            }
+
+            @Override
             public R<SysUser> innerGetUserByPhone(String phonenumber, String source)
             {
                 return R.fail("内部按手机号查询用户失败:" + throwable.getMessage());

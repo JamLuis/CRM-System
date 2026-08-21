@@ -34,6 +34,9 @@ public interface CrmDingtalkIdentityMapper
      */
     int update(CrmDingtalkIdentity identity);
 
+    int deleteByDingtalkUserId(@Param("tenantId") String tenantId,
+                               @Param("dingtalkUserId") String dingtalkUserId);
+
     /**
      * 查询所有映射
      */
