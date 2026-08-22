@@ -1,6 +1,8 @@
 package com.ruoyi.crm.followup.domain;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.ruoyi.crm.common.domain.CrmBaseEntity;
 
 import java.util.Date;
@@ -18,10 +20,13 @@ public class CrmReminderDelivery extends CrmBaseEntity
     private static final long serialVersionUID = 1L;
 
     /** 投递ID（雪花） */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long deliveryId;
     /** 提醒计划ID */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long planId;
     /** 客户ID */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long customerId;
     /** 同一跟进计划的幂等标识 */
     private String planKey;

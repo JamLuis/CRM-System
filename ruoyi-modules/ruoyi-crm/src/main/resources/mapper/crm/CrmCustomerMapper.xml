@@ -335,6 +335,21 @@
           AND del_flag = '0'
     </update>
 
+    <update id="updateFollowUpTimestamps">
+        UPDATE crm_customer
+        SET last_effective_follow_up_at = GREATEST(IFNULL(last_effective_follow_up_at, #{lastEffectiveFollowUpAt}), #{lastEffectiveFollowUpAt}),
+            <if test="nextFollowUpAt != null">
+            next_follow_up_at = #{nextFollowUpAt},
+            </if>
+            update_by = #{updateBy},
+            update_time = NOW(),
+            version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND customer_id = #{customerId}
+          AND version = #{version}
+          AND del_flag = '0'
+    </update>
+
     <update id="refreshLastEffectiveFollowUpAt">
         UPDATE crm_customer c
         JOIN (

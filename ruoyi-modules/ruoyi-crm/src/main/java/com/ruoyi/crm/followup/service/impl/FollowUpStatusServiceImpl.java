@@ -122,11 +122,12 @@ public class FollowUpStatusServiceImpl implements FollowUpStatusService
     public int recalculateBatch()
     {
         String tenantId = TenantContext.getTenantId();
-        List<CrmCustomer> normalCustomers = customerMapper.selectIdsByFollowUpStatus(
-                tenantId, FollowUpStatus.NORMAL.name());
+        // 全量重算：覆盖所有客户（含从未计算过、follow_up_status 为 NULL 的客户）；
+        // 暂停/失效/归档客户由 calculate() 内部跳过。
+        List<CrmCustomer> customers = customerMapper.selectAll(tenantId);
 
         int count = 0;
-        for (CrmCustomer customer : normalCustomers)
+        for (CrmCustomer customer : customers)
         {
             try
             {

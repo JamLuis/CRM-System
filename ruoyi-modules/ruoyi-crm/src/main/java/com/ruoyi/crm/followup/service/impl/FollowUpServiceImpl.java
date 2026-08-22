@@ -14,6 +14,7 @@ import com.ruoyi.crm.followup.mapper.CrmAttachmentMapper;
 import com.ruoyi.crm.followup.mapper.CrmFollowUpContactMapper;
 import com.ruoyi.crm.followup.mapper.CrmFollowUpMapper;
 import com.ruoyi.crm.followup.service.FollowUpService;
+import com.ruoyi.crm.followup.service.FollowUpStatusService;
 import com.ruoyi.crm.followup.service.ReminderService;
 import com.ruoyi.crm.permission.PermissionCode;
 import com.ruoyi.crm.permission.PermissionContext;
@@ -74,6 +75,9 @@ public class FollowUpServiceImpl implements FollowUpService
     @Autowired
     private ReminderService reminderService;
 
+    @Autowired
+    private FollowUpStatusService followUpStatusService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CrmFollowUp create(CrmFollowUp followUp, List<Long> contactIds, List<Long> attachmentIds)
@@ -114,6 +118,10 @@ public class FollowUpServiceImpl implements FollowUpService
         Date now = new Date();
         followUp.setFollowUpId(idGenerator.nextId());
         followUp.setTenantId(tenantId);
+        if (followUp.getHasNewSigningProject() == null)
+        {
+            followUp.setHasNewSigningProject(false);
+        }
         followUp.setIsCorrected(false);
         followUp.setIsVoided(false);
         followUp.setCreatedBy(operatorId);
@@ -166,8 +174,15 @@ public class FollowUpServiceImpl implements FollowUpService
         }
 
         // 更新客户最近有效跟进时间和下一次跟进时间
-        customerMapper.updateFollowUpStatus(tenantId, followUp.getCustomerId(),
-                customer.getFollowUpStatus(), operatorName, customer.getVersion());
+        int rows = customerMapper.updateFollowUpTimestamps(tenantId, followUp.getCustomerId(),
+                followUp.getFollowUpAt(), followUp.getNextFollowUpAt(), operatorName, customer.getVersion());
+        if (rows == 0)
+        {
+            throw new IllegalStateException("客户已被其他操作修改，请刷新后重试");
+        }
+
+        // 重算客户跟进状态（健康度）
+        followUpStatusService.calculate(followUp.getCustomerId());
 
         recordAudit(tenantId, followUp.getFollowUpId(), followUp.getCustomerId(),
                 operatorId, operatorName, "CREATE", null, followUp.getContent());
@@ -237,6 +252,10 @@ public class FollowUpServiceImpl implements FollowUpService
         correction.setCustomerId(original.getCustomerId());
         correction.setCorrectionOfFollowUpId(originalFollowUpId);
         correction.setCorrectionReason(correctionReason);
+        if (correction.getHasNewSigningProject() == null)
+        {
+            correction.setHasNewSigningProject(false);
+        }
         correction.setIsCorrected(false);
         correction.setIsVoided(false);
         correction.setCreatedBy(operatorId);
@@ -267,6 +286,15 @@ public class FollowUpServiceImpl implements FollowUpService
             }
             followUpContactMapper.batchInsert(list);
         }
+
+        // 更新客户最近有效跟进时间和下一次跟进时间，并重算跟进状态
+        int rows = customerMapper.updateFollowUpTimestamps(tenantId, correction.getCustomerId(),
+                correction.getFollowUpAt(), correction.getNextFollowUpAt(), operatorName, customer.getVersion());
+        if (rows == 0)
+        {
+            throw new IllegalStateException("客户已被其他操作修改，请刷新后重试");
+        }
+        followUpStatusService.calculate(correction.getCustomerId());
 
         recordAudit(tenantId, correction.getFollowUpId(), correction.getCustomerId(),
                 operatorId, operatorName, "CORRECT", String.valueOf(originalFollowUpId),

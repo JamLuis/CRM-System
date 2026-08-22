@@ -95,7 +95,7 @@ const FollowUpsTab: React.FC<FollowUpsTabProps> = ({ customerId }) => {
       method: values.method,
       followUpAt: values.followUpAt?.format('YYYY-MM-DD HH:mm:ss'),
       content: values.content,
-      hasNewSigningProject: values.hasNewSigningProject,
+      hasNewSigningProject: values.hasNewSigningProject === true,
       outcome: values.outcome,
       nextAction: values.nextAction,
       nextFollowUpAt: values.nextFollowUpAt?.format('YYYY-MM-DD HH:mm:ss'),

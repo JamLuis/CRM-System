@@ -3,6 +3,7 @@ package com.ruoyi.crm.customer.mapper;
 import com.ruoyi.crm.customer.domain.CrmCustomer;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -107,4 +108,14 @@ public interface CrmCustomerMapper
      */
     java.util.List<CrmCustomer> selectIdsByFollowUpStatus(@Param("tenantId") String tenantId,
                                                            @Param("followUpStatus") String followUpStatus);
+
+    /**
+     * 更新客户跟进时间戳（乐观锁）：最近有效跟进时间取较大值，下次跟进时间仅当非空时覆盖
+     */
+    int updateFollowUpTimestamps(@Param("tenantId") String tenantId,
+                                 @Param("customerId") Long customerId,
+                                 @Param("lastEffectiveFollowUpAt") Date lastEffectiveFollowUpAt,
+                                 @Param("nextFollowUpAt") Date nextFollowUpAt,
+                                 @Param("updateBy") String updateBy,
+                                 @Param("version") Integer version);
 }

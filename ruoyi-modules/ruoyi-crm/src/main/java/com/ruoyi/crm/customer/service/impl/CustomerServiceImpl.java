@@ -113,6 +113,12 @@ public class CustomerServiceImpl implements CustomerService
         {
             throw new IllegalArgumentException("正常客户必须设置下次跟进时间");
         }
+        // 主负责人 NOT NULL：未指定时默认创建人为主负责人
+        if (customer.getPrimaryOwnerId() == null)
+        {
+            customer.setPrimaryOwnerId(operatorId);
+            customer.setPrimaryOwnerName(operatorName);
+        }
         customer.setVersion(0);
         customer.setDelFlag("0");
         customer.setCreateBy(operatorName);

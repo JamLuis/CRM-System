@@ -56,7 +56,7 @@ const H5Todos: React.FC = () => {
     const confirmed = await Dialog.confirm({ content: '确认完成该待办？' });
     if (!confirmed) return;
     try {
-      const resp = await completeMyTodo(item.deliveryId as number, { skipErrorHandler: true });
+      const resp = await completeMyTodo(item.deliveryId as API.Crm.Id, { skipErrorHandler: true });
       if (resp.code === 200) {
         Toast.show({ icon: 'success', content: '已完成' });
         loadData();
@@ -72,7 +72,7 @@ const H5Todos: React.FC = () => {
   /** 桌面端完成待办（Popconfirm 确认） */
   const handleCompletePc = async (item: API.Crm.ReminderDelivery) => {
     try {
-      const resp = await completeMyTodo(item.deliveryId as number, { skipErrorHandler: true });
+      const resp = await completeMyTodo(item.deliveryId as API.Crm.Id, { skipErrorHandler: true });
       if (resp.code === 200) {
         message.success('已完成');
         loadData();

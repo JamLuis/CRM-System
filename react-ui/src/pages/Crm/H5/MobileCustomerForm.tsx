@@ -121,8 +121,18 @@ const MobileCustomerForm: React.FC<MobileCustomerFormProps> = ({
             name="nextFollowUpAt"
             label="下次跟进时间"
             rules={[{ required: true, message: '正常客户必须设置下次跟进时间' }]}
+            trigger="onConfirm"
+            onClick={(_e, datePickerRef: any) => datePickerRef?.current?.open()}
           >
-            <DatePicker precision="minute" />
+            <DatePicker precision="minute">
+              {(value) =>
+                value ? (
+                  dayjs(value).format('YYYY-MM-DD HH:mm')
+                ) : (
+                  <span style={{ color: '#999' }}>请选择下次跟进时间</span>
+                )
+              }
+            </DatePicker>
           </Form.Item>
           <Form.Item name="addressProvince" label="省份">
             <Input placeholder="省份" maxLength={32} />

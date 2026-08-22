@@ -30,7 +30,7 @@ export async function getMyTodos(options?: Record<string, any>) {
 }
 
 /** 完成我的一条待办 */
-export async function completeMyTodo(deliveryId: number, options?: Record<string, any>) {
+export async function completeMyTodo(deliveryId: API.Crm.Id, options?: Record<string, any>) {
   return request<API.Crm.R<API.Crm.ReminderDelivery>>(
     `/api/crm/v1/reminders/my-todos/${deliveryId}/complete`,
     { method: 'POST', ...(options || {}) },

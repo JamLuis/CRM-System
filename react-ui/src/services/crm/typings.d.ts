@@ -249,13 +249,13 @@ declare namespace API.Crm {
   // ==================== 提醒投递（我的待办） ====================
 
   interface ReminderDelivery {
-    deliveryId?: number;
-    planId?: number;
+    deliveryId?: Id;
+    planId?: Id;
     customerId?: Id;
     planKey?: string;
     plannedFollowUpAt?: string;
     scheduledAt?: string;
-    recipientUserId?: number;
+    recipientUserId?: Id;
     recipientName?: string;
     /** 状态：PENDING/RETRYING/SENT/COMPLETED/CANCELLED/FAILED */
     status?: string;

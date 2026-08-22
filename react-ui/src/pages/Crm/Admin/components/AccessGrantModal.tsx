@@ -14,8 +14,8 @@ export type AccessGrantModalProps = {
 const parseRoleIds = (value?: string) =>
   (value || '')
     .split(',')
-    .map((item) => Number(item))
-    .filter((item) => Number.isFinite(item));
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isInteger(item) && item > 0);
 
 const AccessGrantModal: React.FC<AccessGrantModalProps> = ({
   open,

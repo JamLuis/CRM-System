@@ -16,7 +16,12 @@ import { history, useAccess } from '@umijs/max';
 import { Button, Dropdown, message, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
 import '../components/CrmPage.less';
-import { IMPORTANCE_ENUM, LIFECYCLE_STAGE_ENUM, OPERATING_STATUS_ENUM } from '../constants';
+import {
+  FOLLOW_UP_STATUS_ENUM,
+  IMPORTANCE_ENUM,
+  LIFECYCLE_STAGE_ENUM,
+  OPERATING_STATUS_ENUM,
+} from '../constants';
 import CustomerForm from './components/CustomerForm';
 import StatusCommandModal, {
   StatusCommandKey,
@@ -344,10 +349,14 @@ const CustomerList: React.FC = () => {
     },
     {
       title: '跟进力度',
-      dataIndex: 'followUpIntensity',
+      dataIndex: 'followUpStatus',
       hideInSearch: true,
       width: 110,
-      render: (_, record) => displayText(record.followUpIntensity),
+      render: (_, record) => {
+        const meta = FOLLOW_UP_STATUS_ENUM[record.followUpStatus || ''];
+        if (!meta) return displayText(record.followUpIntensity);
+        return <Tag color={meta.color}>{meta.text}</Tag>;
+      },
     },
     {
       title: '负责人',
